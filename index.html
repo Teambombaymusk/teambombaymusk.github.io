@@ -205,6 +205,7 @@
   .pill-absent{ background:var(--panel); color:var(--muted); border:1.5px solid var(--amber-line); text-decoration:line-through; }
   .pill-todo{ background:var(--panel); color:var(--muted); border:1.5px solid var(--amber-line); }
   .daydot{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:6px; font-size:10px; font-weight:700; transition:transform .1s, box-shadow .15s; }
+  .daydot-selected{ background:var(--ink) !important; color:var(--fill-text) !important; box-shadow:0 0 0 2px var(--ink); }
   .daydot:hover{ transform:scale(1.15); box-shadow:0 0 0 2px var(--amber-line); }
   .dot-present{ background:var(--ink); color:var(--fill-text); }
   .dot-absent{ background:var(--panel); color:var(--muted); border:1px solid var(--amber-line); }
@@ -1041,7 +1042,14 @@ function pageReports(){
   </div>`;
 
   // ---- Attendance grid ----
-  html += `<div class="section-head"><h3>${monthLabel} · Attendance</h3></div>`;
+  const bulkMode = !!window.__bulkMode;
+  const bulkCount = window.__bulkSelection ? window.__bulkSelection.size : 0;
+  html += `<div class="section-head"><h3>${monthLabel} · Attendance</h3>
+    <div class="row-actions">
+      ${bulkMode ? `<button class="btn btn-sm btn-primary" ${bulkCount?'':'disabled style="opacity:0.5;"'} onclick="openBulkAttendanceForm()">Edit selected (${bulkCount})</button>` : ''}
+      <button class="btn btn-sm btn-ghost" onclick="toggleBulkAttendanceMode()">${bulkMode ? 'Cancel selection' : 'Select multiple'}</button>
+    </div>
+  </div>`;
   if(!people.length){
     html += `<div class="empty"><div class="big">▤</div><div class="t">No one to show</div><div class="s">Add people to your team to see their attendance here.</div></div>`;
   } else {
@@ -1056,12 +1064,15 @@ function pageReports(){
         const cell = dayCell(e.id, date);
         if(cell.status==='P'){ present++; hours += cell.hours||0; }
         if(cell.status==='L') leaveDays++;
-        html += `<td style="text-align:center;"><span class="daydot ${cell.cls}" title="${cell.title}" style="cursor:pointer;" onclick="openAttendanceForm('${e.id}','${date}')">${cell.label||'·'}</span></td>`;
+        const cellKey = attKey(e.id, date);
+        const isSelected = bulkMode && window.__bulkSelection && window.__bulkSelection.has(cellKey);
+        const clickHandler = bulkMode ? `toggleBulkCell('${e.id}','${date}')` : `openAttendanceForm('${e.id}','${date}')`;
+        html += `<td style="text-align:center;"><span class="daydot ${cell.cls} ${isSelected?'daydot-selected':''}" title="${cell.title}" style="cursor:pointer;" onclick="${clickHandler}">${isSelected?'✓':(cell.label||'·')}</span></td>`;
       }
       html += `<td class="mono">${present}</td><td class="mono">${leaveDays}</td><td class="mono">${hours.toFixed(1)}h</td></tr>`;
     });
     html += `</tbody></table></div>
-    <p class="note" style="margin-top:10px;">P = present · A = absent · L = on approved leave · blank = future date. Click any day to edit that record. Scroll sideways to see the full month.</p>`;
+    <p class="note" style="margin-top:10px;">${bulkMode ? 'Tap any day to select it, then Edit selected to update them all at once.' : 'P = present · A = absent · L = on approved leave · blank = future date. Click any day to edit that record, or Select multiple to edit several at once.'} Scroll sideways to see the full month.</p>`;
   }
 
   // ---- Leave register for the month ----
@@ -1081,6 +1092,59 @@ function pageReports(){
   html += `</tbody></table></div>`;
 
   $('#mainContent').innerHTML = html;
+}
+function toggleBulkAttendanceMode(){
+  window.__bulkMode = !window.__bulkMode;
+  window.__bulkSelection = new Set();
+  renderPage();
+}
+function toggleBulkCell(empId, date){
+  if(!window.__bulkSelection) window.__bulkSelection = new Set();
+  const key = attKey(empId, date);
+  if(window.__bulkSelection.has(key)) window.__bulkSelection.delete(key);
+  else window.__bulkSelection.add(key);
+  renderPage();
+}
+function openBulkAttendanceForm(){
+  const count = window.__bulkSelection ? window.__bulkSelection.size : 0;
+  if(!count) return;
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>Edit ${count} selected record${count>1?'s':''}</h3>
+    <p class="note" style="margin-bottom:16px;">These times will be applied to every day you selected. Leave a field blank to clear it for all of them.</p>
+    <div class="field"><label>Check-in time</label><input type="time" id="bulkIn"></div>
+    <div class="field"><label>Check-out time</label><input type="time" id="bulkOut"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="submitBulkAttendance()">Apply to ${count} record${count>1?'s':''}</button>
+    <button class="btn btn-ghost" style="width:100%; margin-top:8px;" onclick="clearBulkAttendance()">Clear all selected records</button>
+  `);
+}
+function submitBulkAttendance(){
+  const inTime = $('#bulkIn').value, outTime = $('#bulkOut').value;
+  const months = new Set();
+  window.__bulkSelection.forEach(key=>{
+    const [empId, date] = key.split('::');
+    const rec = {};
+    rec.checkIn = inTime ? new Date(date+'T'+inTime+':00').toISOString() : null;
+    rec.checkOut = outTime ? new Date(date+'T'+outTime+':00').toISOString() : null;
+    DB.attendance[key] = rec;
+    months.add(date.slice(0,7));
+  });
+  months.forEach(ym => saveAttendanceMonth(ym));
+  const count = window.__bulkSelection.size;
+  window.__bulkMode = false; window.__bulkSelection = new Set();
+  closeModal(); toast(`Updated ${count} record${count>1?'s':''}`); renderPage();
+}
+function clearBulkAttendance(){
+  if(!confirm(`Clear all ${window.__bulkSelection.size} selected attendance records? This can't be undone.`)) return;
+  const months = new Set();
+  window.__bulkSelection.forEach(key=>{
+    delete DB.attendance[key];
+    months.add(key.split('::')[1].slice(0,7));
+  });
+  months.forEach(ym => saveAttendanceMonth(ym));
+  const count = window.__bulkSelection.size;
+  window.__bulkMode = false; window.__bulkSelection = new Set();
+  closeModal(); toast(`Cleared ${count} record${count>1?'s':''}`); renderPage();
 }
 function dayCell(empId, date){
   const rec = DB.attendance[attKey(empId, date)];
