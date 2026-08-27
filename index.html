@@ -349,20 +349,26 @@ function saveDB(key){
 }
 
 /* ---------------- auth ---------------- */
+const SESSION_KEY = 'bombayMuskSessionEmployeeId';
 $('#loginForm').addEventListener('submit', async (e)=>{
   e.preventDefault();
   const id = $('#loginId').value.trim();
   const pin = $('#loginPin').value.trim();
   const emp = DB.employees.find(x => x.id.toLowerCase() === id.toLowerCase() && x.pin === pin);
   if(!emp){ $('#loginError').textContent = 'Employee ID or PIN is incorrect.'; return; }
+  signInAs(emp);
+});
+function signInAs(emp){
   CURRENT = emp;
   ACTIVE_TAB = 'dashboard';
+  try{ localStorage.setItem(SESSION_KEY, emp.id); }catch(e){}
   $('#loginScreen').style.display = 'none';
   $('#app').style.display = 'block';
   renderShell();
-});
+}
 function logout(){
   CURRENT = null;
+  try{ localStorage.removeItem(SESSION_KEY); }catch(e){}
   $('#app').style.display = 'none';
   $('#loginScreen').style.display = 'flex';
   $('#loginId').value=''; $('#loginPin').value=''; $('#loginError').textContent='';
@@ -1232,6 +1238,16 @@ function removeEmployee(id){
     return;
   }
   await loadDB();
+
+  // Auto sign-in if this device already has a saved session
+  try{
+    const savedId = localStorage.getItem(SESSION_KEY);
+    if(savedId){
+      const emp = DB.employees.find(e => e.id === savedId);
+      if(emp) signInAs(emp);
+      else localStorage.removeItem(SESSION_KEY); // stale/removed account
+    }
+  }catch(e){}
 })();
 </script>
 </body>
