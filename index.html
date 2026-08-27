@@ -327,20 +327,28 @@ function toast(msg){
 /* ---------------- storage helpers ---------------- */
 async function loadDB(){
   const keys = ['employees','teams','attendance','leaves','advances','tasks'];
-  const results = await Promise.all(keys.map(k =>
-    window.storage.get(k, true).catch(()=>null)
-  ));
+  let hadError = false;
+  const results = await Promise.all(keys.map(async (k) => {
+    try{ return await window.storage.get(k, true); }
+    catch(e){ hadError = true; console.error('Failed to load', k, e); return null; }
+  }));
   keys.forEach((k, i) => {
     const res = results[i];
     DB[k] = res && res.value ? JSON.parse(res.value) : (k==='attendance' ? {} : []);
   });
-  // seed default admin if nothing exists yet
+  if(hadError){
+    // Something failed to load — do NOT treat this as "database is empty".
+    // Seeding a fresh admin here would overwrite real data on the next save.
+    return false;
+  }
+  // Only safe to seed a default admin once we've confirmed reads succeeded and it's genuinely empty.
   if(!DB.employees.length){
     DB.employees.push({
       id:'admin', name:'Founder', pin:'8827', role:'FOUNDER', team:null, phone:'', joinDate: todayStr()
     });
     await saveDB('employees');
   }
+  return true;
 }
 function saveDB(key){
   // Optimistic: fire-and-forget so the UI never blocks on network round-trips.
@@ -1237,7 +1245,13 @@ function removeEmployee(id){
     $('#loginError').textContent = '';
     return;
   }
-  await loadDB();
+  const loaded = await loadDB();
+  if(!loaded){
+    $('#loginHint').style.display = 'block';
+    $('#loginHint').innerHTML = '<b>Connection issue:</b> couldn\'t reach the database. Check your internet connection and reload the page.';
+    $('#loginError').textContent = '';
+    return;
+  }
 
   // Auto sign-in if this device already has a saved session
   try{
