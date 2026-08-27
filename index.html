@@ -204,7 +204,8 @@
   .pill-present{ background:var(--ink); color:var(--fill-text); }
   .pill-absent{ background:var(--panel); color:var(--muted); border:1.5px solid var(--amber-line); text-decoration:line-through; }
   .pill-todo{ background:var(--panel); color:var(--muted); border:1.5px solid var(--amber-line); }
-  .daydot{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:6px; font-size:10px; font-weight:700; }
+  .daydot{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:6px; font-size:10px; font-weight:700; transition:transform .1s, box-shadow .15s; }
+  .daydot:hover{ transform:scale(1.15); box-shadow:0 0 0 2px var(--amber-line); }
   .dot-present{ background:var(--ink); color:var(--fill-text); }
   .dot-absent{ background:var(--panel); color:var(--muted); border:1px solid var(--amber-line); }
   .dot-leave{ background:var(--panel); color:var(--ink); border:1.5px solid var(--ink); }
@@ -914,7 +915,7 @@ function pageTasks(){
         ${t.description ? `<div style="color:var(--muted); font-size:12px;">${escapeHtml(t.description)}</div>` : ''}
         <div class="meta">
           <span>${isManager ? escapeHtml(empName(t.assignedTo)) : (t.dueDate ? 'Due '+fmtDate(t.dueDate) : '')}</span>
-          ${isManager ? `<button class="link-btn" style="margin-right:6px;" onclick="openTaskForm('${t.id}')">Edit</button>` : ''}
+          ${isManager ? `<button class="link-btn" style="margin-right:6px;" onclick="openTaskForm('${t.id}')">Edit</button><button class="link-btn" style="margin-right:6px;" onclick="deleteTask('${t.id}')">Delete</button>` : ''}
           <select onchange="moveTask('${t.id}', this.value)" style="border:1px solid var(--amber-line); border-radius:6px; font-size:11px; padding:2px 4px;">
             <option value="TODO" ${t.status==='TODO'?'selected':''}>To do</option>
             <option value="PROGRESS" ${t.status==='PROGRESS'?'selected':''}>In progress</option>
@@ -963,6 +964,13 @@ function submitTask(){
 function moveTask(id, status){
   const t = DB.tasks.find(x=>x.id===id); if(!t) return;
   t.status = status; toast('Task updated'); renderPage();
+  saveDB('tasks');
+}
+function deleteTask(id){
+  const t = DB.tasks.find(x=>x.id===id); if(!t) return;
+  if(!confirm(`Delete "${t.title}"? This can't be undone.`)) return;
+  DB.tasks = DB.tasks.filter(x=>x.id!==id);
+  toast('Task deleted'); renderPage();
   saveDB('tasks');
 }
 
@@ -1034,12 +1042,12 @@ function pageReports(){
         const cell = dayCell(e.id, date);
         if(cell.status==='P'){ present++; hours += cell.hours||0; }
         if(cell.status==='L') leaveDays++;
-        html += `<td style="text-align:center;"><span class="daydot ${cell.cls}" title="${cell.title}">${cell.label}</span></td>`;
+        html += `<td style="text-align:center;"><span class="daydot ${cell.cls}" title="${cell.title}" style="cursor:pointer;" onclick="openAttendanceForm('${e.id}','${date}')">${cell.label||'·'}</span></td>`;
       }
       html += `<td class="mono">${present}</td><td class="mono">${leaveDays}</td><td class="mono">${hours.toFixed(1)}h</td></tr>`;
     });
     html += `</tbody></table></div>
-    <p class="note" style="margin-top:10px;">P = present · A = absent · L = on approved leave · blank = future date. Scroll sideways to see the full month.</p>`;
+    <p class="note" style="margin-top:10px;">P = present · A = absent · L = on approved leave · blank = future date. Click any day to edit that record. Scroll sideways to see the full month.</p>`;
   }
 
   // ---- Leave register for the month ----
