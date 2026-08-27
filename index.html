@@ -1198,6 +1198,7 @@ function deleteTeam(teamId){
 function openTeamForm(editId){
   const existing = editId ? DB.teams.find(t=>t.id===editId) : null;
   const leadOptions = DB.employees.filter(e=>e.role==='TEAM_LEAD' || e.role==='FOUNDER');
+  const coreOptions = DB.employees.filter(e=>e.role==='CORE_TEAM');
   openModal(`
     <button class="close" onclick="closeModal()">×</button>
     <h3>${existing ? 'Edit team' : 'New team'}</h3>
@@ -1206,6 +1207,16 @@ function openTeamForm(editId){
       <option value="">— unassigned —</option>
       ${leadOptions.map(e=>`<option value="${e.id}" ${existing&&existing.leadId===e.id?'selected':''}>${escapeHtml(e.name)}</option>`).join('')}
     </select></div>
+    <div class="field">
+      <label>Core team members overseeing this team</label>
+      <div style="border:1.5px solid var(--amber-line); border-radius:10px; padding:10px 13px; max-height:160px; overflow-y:auto;">
+        ${coreOptions.length ? coreOptions.map(e=>`
+          <label style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13.5px; font-weight:400; text-transform:none; letter-spacing:normal; color:var(--ink);">
+            <input type="checkbox" class="teamCoreChk" value="${e.id}" ${existing&&(e.managedTeams||[]).includes(existing.id)?'checked':''}>
+            ${escapeHtml(e.name)}
+          </label>`).join('') : '<p class="note">No Core Team members yet — add one in People first.</p>'}
+      </div>
+    </div>
     <input type="hidden" id="teamEditId" value="${existing?existing.id:''}">
     <button class="btn btn-primary" style="width:100%;" onclick="submitTeam()">${existing?'Save changes':'Create team'}</button>
   `);
@@ -1214,6 +1225,7 @@ function submitTeam(){
   const editId = $('#teamEditId').value;
   const name = $('#teamName').value.trim();
   const leadId = $('#teamLead').value || null;
+  const checkedCoreIds = $$('.teamCoreChk:checked').map(el=>el.value);
   if(!name){ toast('Enter a team name'); return; }
   if(editId){
     const t = DB.teams.find(x=>x.id===editId);
@@ -1226,14 +1238,27 @@ function submitTeam(){
         emp.role = 'TEAM_LEAD'; emp.team = editId; empChanged = true;
       }
     }
+    DB.employees.filter(e=>e.role==='CORE_TEAM').forEach(e=>{
+      const has = (e.managedTeams||[]).includes(editId);
+      const shouldHave = checkedCoreIds.includes(e.id);
+      if(shouldHave && !has){ e.managedTeams = [...(e.managedTeams||[]), editId]; empChanged = true; }
+      else if(!shouldHave && has){ e.managedTeams = (e.managedTeams||[]).filter(id=>id!==editId); empChanged = true; }
+    });
     closeModal(); toast('Team updated'); renderPage();
     saveDB('teams');
     if(empChanged) saveDB('employees');
     return;
   }
-  DB.teams.push({ id: uid('team'), name, leadId });
+  const newTeamId = uid('team');
+  DB.teams.push({ id: newTeamId, name, leadId });
+  let empChanged = false;
+  checkedCoreIds.forEach(coreId=>{
+    const emp = DB.employees.find(e=>e.id===coreId);
+    if(emp){ emp.managedTeams = [...(emp.managedTeams||[]), newTeamId]; empChanged = true; }
+  });
   closeModal(); toast('Team created'); renderPage();
   saveDB('teams');
+  if(empChanged) saveDB('employees');
 }
 function openEmployeeForm(editId){
   const existing = editId ? DB.employees.find(e=>e.id===editId) : null;
