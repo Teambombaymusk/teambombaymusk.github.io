@@ -391,8 +391,8 @@ function tabsForRole(role){
     {id:'advance', label:'Advance', ic:'₹'},
     {id:'tasks', label:'Tasks', ic:'✓'},
   ];
-  if(role === 'TEAM_LEAD' || role === 'FOUNDER') base.push({id:'team', label:'Team', ic:'◎'});
-  if(role === 'TEAM_LEAD' || role === 'FOUNDER') base.push({id:'reports', label:'Reports', ic:'▤'});
+  if(role === 'TEAM_LEAD' || role === 'FOUNDER' || role === 'CORE_TEAM') base.push({id:'team', label:'Team', ic:'◎'});
+  if(role === 'TEAM_LEAD' || role === 'FOUNDER' || role === 'CORE_TEAM') base.push({id:'reports', label:'Reports', ic:'▤'});
   if(role === 'FOUNDER') base.push({id:'salary', label:'Salary', ic:'₹'});
   if(role === 'FOUNDER') base.push({id:'people', label:'People', ic:'⚙'});
   return base;
@@ -423,6 +423,10 @@ function teamName(id){ const t = DB.teams.find(x=>x.id===id); return t ? t.name 
 function empName(id){ const e = DB.employees.find(x=>x.id===id); return e ? e.name : id; }
 function myTeamMemberIds(){
   if(CURRENT.role === 'FOUNDER') return DB.employees.map(e=>e.id);
+  if(CURRENT.role === 'CORE_TEAM'){
+    const managed = CURRENT.managedTeams || [];
+    return DB.employees.filter(e => managed.includes(e.team) || e.id===CURRENT.id).map(e=>e.id);
+  }
   const myTeams = DB.teams.filter(t=>t.leadId===CURRENT.id).map(t=>t.id);
   return DB.employees.filter(e => myTeams.includes(e.team) || e.id===CURRENT.id).map(e=>e.id);
 }
@@ -541,7 +545,7 @@ function doCheckOut(){
    ATTENDANCE PAGE
    ============================================================ */
 function pageAttendance(){
-  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   let html = `<h2 class="page-title">Attendance</h2><p class="page-sub">${isManager?'Track check-ins across your team.':'Your check-in history.'}</p>`;
   html += clockCardHTML();
 
@@ -614,7 +618,7 @@ function clearAttendance(empId, date){
    LEAVE PAGE
    ============================================================ */
 function pageLeave(){
-  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   let html = `<h2 class="page-title">Leave</h2><p class="page-sub">${isManager?'Review requests from your team.':'Apply for leave and track approvals.'}</p>`;
 
   if(!isManager || true){
@@ -650,7 +654,7 @@ function pageLeave(){
 }
 function openLeaveForm(editId){
   const existing = editId ? DB.leaves.find(l=>l.id===editId) : null;
-  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   openModal(`
     <button class="close" onclick="closeModal()">×</button>
     <h3>${existing?'Edit leave request':'Apply for leave'}</h3>
@@ -697,7 +701,7 @@ function decideLeave(id, status){
    ADVANCE SALARY PAGE
    ============================================================ */
 function pageAdvance(){
-  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   let html = `<h2 class="page-title">Salary advance</h2><p class="page-sub">Request or review advance salary payouts.</p>
   <div class="section-head"><h3>Your requests</h3><button class="btn btn-primary btn-sm" onclick="openAdvanceForm()">+ New request</button></div>`;
 
@@ -725,7 +729,7 @@ function pageAdvance(){
 }
 function openAdvanceForm(editId){
   const existing = editId ? DB.advances.find(a=>a.id===editId) : null;
-  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   openModal(`
     <button class="close" onclick="closeModal()">×</button>
     <h3>${existing?'Edit advance request':'Request salary advance'}</h3>
@@ -769,7 +773,7 @@ function decideAdvance(id, status){
    TASKS PAGE
    ============================================================ */
 function pageTasks(){
-  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   let html = `<h2 class="page-title">Tasks</h2><p class="page-sub">${isManager?'Assign and track work across your team.':'Your assigned work.'}</p>`;
   if(isManager) html += `<div class="section-head"><h3>Board</h3><button class="btn btn-primary btn-sm" onclick="openTaskForm()">+ New task</button></div>`;
 
@@ -1091,11 +1095,13 @@ function pagePeople(){
   let html = `<h2 class="page-title">People & teams</h2><p class="page-sub">Add employees, team leads, and teams.</p>`;
 
   html += `<div class="section-head"><h3>Teams (${DB.teams.length})</h3><button class="btn btn-primary btn-sm" onclick="openTeamForm()">+ New team</button></div>`;
-  html += `<div class="card table-wrap"><table><thead><tr><th>Team</th><th>Lead</th><th>Members</th><th></th></tr></thead><tbody>`;
-  if(!DB.teams.length) html += `<tr><td colspan="4" class="empty">No teams yet — create one to get started.</td></tr>`;
+  html += `<div class="card table-wrap"><table><thead><tr><th>Team</th><th>Lead</th><th>Core team</th><th>Members</th><th></th></tr></thead><tbody>`;
+  if(!DB.teams.length) html += `<tr><td colspan="5" class="empty">No teams yet — create one to get started.</td></tr>`;
   DB.teams.forEach(t=>{
     const memberCount = DB.employees.filter(e=>e.team===t.id).length;
-    html += `<tr><td>${escapeHtml(t.name)}</td><td>${t.leadId?escapeHtml(empName(t.leadId)):'— unassigned —'}</td><td>${memberCount}</td>
+    const overseers = DB.employees.filter(e=>e.role==='CORE_TEAM' && (e.managedTeams||[]).includes(t.id));
+    html += `<tr><td>${escapeHtml(t.name)}</td><td>${t.leadId?escapeHtml(empName(t.leadId)):'— unassigned —'}</td>
+      <td>${overseers.length?overseers.map(o=>escapeHtml(o.name)).join(', '):'—'}</td><td>${memberCount}</td>
       <td><button class="link-btn" onclick="openTeamForm('${t.id}')">Edit</button></td></tr>`;
   });
   html += `</tbody></table></div>`;
@@ -1103,7 +1109,9 @@ function pagePeople(){
   html += `<div class="section-head"><h3>Employees (${DB.employees.length})</h3><button class="btn btn-primary btn-sm" onclick="openEmployeeForm()">+ Add person</button></div>`;
   html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Team</th><th></th></tr></thead><tbody>`;
   DB.employees.forEach(e=>{
-    html += `<tr><td>${escapeHtml(e.name)}</td><td class="mono">${e.id}</td><td>${e.role.replace('_',' ')}</td><td>${teamName(e.team)}</td>
+    const roleLabel = e.role==='CORE_TEAM' ? 'Core team' : e.role.replace('_',' ');
+    const teamLabel = e.role==='CORE_TEAM' ? ((e.managedTeams||[]).length ? (e.managedTeams||[]).map(tid=>teamName(tid)).join(', ') : '— none assigned —') : teamName(e.team);
+    html += `<tr><td>${escapeHtml(e.name)}</td><td class="mono">${e.id}</td><td>${roleLabel}</td><td>${teamLabel}</td>
       <td><button class="link-btn" onclick="openEmployeeForm('${e.id}')">Edit</button> ${e.id!=='admin' ? `<button class="link-btn" onclick="removeEmployee('${e.id}')">Remove</button>` : ''}</td></tr>`;
   });
   html += `</tbody></table></div>
@@ -1158,12 +1166,23 @@ function openEmployeeForm(editId){
     <div class="field"><label>Full name</label><input type="text" id="epName" value="${existing?escapeHtml(existing.name):''}" required></div>
     <div class="field"><label>Employee ID ${existing?'(cannot be changed — used to log in)':'(used to log in)'}</label><input type="text" id="epId" value="${existing?existing.id:''}" placeholder="e.g. BM-014" ${existing?'disabled':''} required></div>
     <div class="field"><label>PIN</label><input type="text" id="epPin" value="${existing?existing.pin:''}" placeholder="4–6 digits" required></div>
-    <div class="field"><label>Role</label><select id="epRole">
+    <div class="field"><label>Role</label><select id="epRole" onchange="toggleManagedTeamsField()">
       <option value="EMPLOYEE" ${existing&&existing.role==='EMPLOYEE'?'selected':''}>Employee</option>
       <option value="TEAM_LEAD" ${existing&&existing.role==='TEAM_LEAD'?'selected':''}>Team lead</option>
+      <option value="CORE_TEAM" ${existing&&existing.role==='CORE_TEAM'?'selected':''}>Core team</option>
       ${existing&&existing.role==='FOUNDER' ? '<option value="FOUNDER" selected>Founder</option>' : ''}
     </select></div>
     <div class="field"><label>Team</label><select id="epTeam"><option value="">— none —</option>${DB.teams.map(t=>`<option value="${t.id}" ${existing&&existing.team===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}</select></div>
+    <div class="field" id="epManagedTeamsField">
+      <label>Teams they oversee (Core team)</label>
+      <div style="border:1.5px solid var(--amber-line); border-radius:10px; padding:10px 13px; max-height:160px; overflow-y:auto;">
+        ${DB.teams.length ? DB.teams.map(t=>`
+          <label style="display:flex; align-items:center; gap:8px; padding:5px 0; font-size:13.5px; font-weight:400; text-transform:none; letter-spacing:normal; color:var(--ink);">
+            <input type="checkbox" class="epManagedTeamChk" value="${t.id}" ${existing&&existing.managedTeams&&existing.managedTeams.includes(t.id)?'checked':''}>
+            ${escapeHtml(t.name)}
+          </label>`).join('') : '<p class="note">Create a team first.</p>'}
+      </div>
+    </div>
     <div class="field"><label>Salary type</label><select id="epSalaryType" onchange="toggleSalaryFields()">
       <option value="MONTHLY" ${!existing||existing.salaryType!=='DAILY'?'selected':''}>Monthly salary</option>
       <option value="DAILY" ${existing&&existing.salaryType==='DAILY'?'selected':''}>Per-day rate</option>
@@ -1174,6 +1193,11 @@ function openEmployeeForm(editId){
     <button class="btn btn-primary" style="width:100%;" onclick="submitEmployee()">${existing?'Save changes':'Add person'}</button>
   `);
   toggleSalaryFields();
+  toggleManagedTeamsField();
+}
+function toggleManagedTeamsField(){
+  const role = $('#epRole').value;
+  $('#epManagedTeamsField').style.display = role==='CORE_TEAM' ? 'block' : 'none';
 }
 function toggleSalaryFields(){
   const type = $('#epSalaryType').value;
@@ -1184,6 +1208,7 @@ function submitEmployee(){
   const editId = $('#epEditId').value;
   const name = $('#epName').value.trim(), pin = $('#epPin').value.trim();
   const role = $('#epRole').value, team = $('#epTeam').value || null;
+  const managedTeams = role==='CORE_TEAM' ? $$('.epManagedTeamChk:checked').map(el=>el.value) : [];
   const salaryType = $('#epSalaryType').value;
   const salaryRaw = $('#epSalary').value;
   const dailyRaw = $('#epDailyRate').value;
@@ -1194,7 +1219,7 @@ function submitEmployee(){
   if(editId){
     const emp = DB.employees.find(e=>e.id===editId);
     if(!emp){ toast('Person not found'); return; }
-    emp.name = name; emp.pin = pin; emp.role = role; emp.team = team;
+    emp.name = name; emp.pin = pin; emp.role = role; emp.team = team; emp.managedTeams = managedTeams;
     emp.salaryType = salaryType; emp.baseSalary = baseSalary; emp.dailyRate = dailyRate;
     let teamsChanged = false;
     DB.teams.forEach(t=>{
@@ -1213,7 +1238,7 @@ function submitEmployee(){
   const id = $('#epId').value.trim();
   if(!id){ toast('Enter an employee ID'); return; }
   if(DB.employees.some(e=>e.id.toLowerCase()===id.toLowerCase())){ toast('That Employee ID is already in use'); return; }
-  DB.employees.push({ id, name, pin, role, team, salaryType, baseSalary, dailyRate, joinDate: todayStr() });
+  DB.employees.push({ id, name, pin, role, team, managedTeams, salaryType, baseSalary, dailyRate, joinDate: todayStr() });
   let teamChanged = false;
   if(role === 'TEAM_LEAD' && team){
     const t = DB.teams.find(x=>x.id===team); if(t){ t.leadId = id; teamChanged = true; }
