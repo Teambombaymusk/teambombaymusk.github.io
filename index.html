@@ -384,8 +384,10 @@ function toast(msg){
 }
 
 /* ---------------- storage helpers ---------------- */
+const loadedAttendanceMonths = new Set();
+
 async function loadDB(){
-  const keys = ['employees','teams','attendance','leaves','advances','tasks'];
+  const keys = ['employees','teams','leaves','advances','tasks'];
   let hadError = false;
   const results = await Promise.all(keys.map(async (k) => {
     try{ return await window.storage.get(k, true); }
@@ -393,8 +395,9 @@ async function loadDB(){
   }));
   keys.forEach((k, i) => {
     const res = results[i];
-    DB[k] = res && res.value ? JSON.parse(res.value) : (k==='attendance' ? {} : []);
+    DB[k] = res && res.value ? JSON.parse(res.value) : [];
   });
+  DB.attendance = {};
   if(hadError){
     // Something failed to load — do NOT treat this as "database is empty".
     // Seeding a fresh admin here would overwrite real data on the next save.
@@ -407,12 +410,67 @@ async function loadDB(){
     });
     await saveDB('employees');
   }
+  await migrateOldAttendanceIfNeeded();
+  const now = todayStr().slice(0,7);
+  const prevYM = new Date(now+'-01T00:00:00'); prevYM.setMonth(prevYM.getMonth()-1);
+  const prev = prevYM.toISOString().slice(0,7);
+  await Promise.all([ensureAttendanceMonthLoaded(now), ensureAttendanceMonthLoaded(prev)]);
   return true;
 }
-function saveDB(key){
+function saveDB(key, valueOverride){
   // Optimistic: fire-and-forget so the UI never blocks on network round-trips.
-  return window.storage.set(key, JSON.stringify(DB[key]), true)
+  const payload = valueOverride !== undefined ? valueOverride : JSON.stringify(DB[key]);
+  return window.storage.set(key, payload, true)
     .catch(()=> toast('Sync issue — retrying in background.'));
+}
+
+/* Attendance is stored as one Firestore document PER MONTH (key: attendance_YYYY-MM)
+   instead of one giant ever-growing document, so it can never hit Firestore's 1MB
+   per-document limit and a failed save only ever risks one month's data. */
+async function migrateOldAttendanceIfNeeded(){
+  try{
+    const old = await window.storage.get('attendance', true);
+    if(!old || !old.value) return;
+    const oldData = JSON.parse(old.value);
+    const oldKeys = Object.keys(oldData);
+    if(!oldKeys.length) return; // already migrated (cleared) or never had data
+    const byMonth = {};
+    oldKeys.forEach(k=>{
+      const date = k.split('::')[1];
+      if(!date) return;
+      const ym = date.slice(0,7);
+      if(!byMonth[ym]) byMonth[ym] = {};
+      byMonth[ym][k] = oldData[k];
+    });
+    await Promise.all(Object.keys(byMonth).map(ym => saveDB('attendance_'+ym, JSON.stringify(byMonth[ym]))));
+    Object.assign(DB.attendance, oldData);
+    Object.keys(byMonth).forEach(ym => loadedAttendanceMonths.add(ym));
+    await saveDB('attendance', JSON.stringify({})); // clear old doc so this never re-runs
+    console.log('Migrated attendance into', Object.keys(byMonth).length, 'monthly records');
+  }catch(e){
+    console.error('Attendance migration check failed', e);
+  }
+}
+async function ensureAttendanceMonthLoaded(ym){
+  if(loadedAttendanceMonths.has(ym)) return;
+  loadedAttendanceMonths.add(ym);
+  try{
+    const res = await window.storage.get('attendance_'+ym, true);
+    const monthData = res && res.value ? JSON.parse(res.value) : {};
+    Object.assign(DB.attendance, monthData);
+  }catch(e){
+    loadedAttendanceMonths.delete(ym); // allow a retry on next request
+    console.error('Failed to load attendance for', ym, e);
+    toast('Could not load attendance for that month — check your connection.');
+  }
+}
+function saveAttendanceMonth(ym){
+  const slice = {};
+  Object.keys(DB.attendance).forEach(k=>{
+    const date = k.split('::')[1];
+    if(date && date.slice(0,7)===ym) slice[k] = DB.attendance[k];
+  });
+  return saveDB('attendance_'+ym, JSON.stringify(slice));
 }
 
 /* ---------------- auth ---------------- */
@@ -591,13 +649,13 @@ function doCheckIn(){
   const key = attKey(CURRENT.id, todayStr());
   DB.attendance[key] = { checkIn: new Date().toISOString(), checkOut: null };
   toast('Checked in ✓'); renderPage();
-  saveDB('attendance');
+  saveAttendanceMonth(todayStr().slice(0,7));
 }
 function doCheckOut(){
   const key = attKey(CURRENT.id, todayStr());
   if(DB.attendance[key]) DB.attendance[key].checkOut = new Date().toISOString();
   toast('Checked out ✓'); renderPage();
-  saveDB('attendance');
+  saveAttendanceMonth(todayStr().slice(0,7));
 }
 
 /* ============================================================
@@ -612,7 +670,7 @@ function pageAttendance(){
     const scopeIds = myTeamMemberIds();
     const date = window.__attDate || todayStr();
     html += `<div class="section-head"><h3>Day view</h3></div>
-    <div class="filter-row"><input type="date" value="${date}" onchange="window.__attDate=this.value; renderPage();"></div>
+    <div class="filter-row"><input type="date" value="${date}" onchange="changeAttendanceDate(this.value)"></div>
     <div class="card table-wrap"><table><thead><tr><th>Name</th><th>Team</th><th>In</th><th>Out</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody>`;
     const rows = DB.employees.filter(e=>scopeIds.includes(e.id));
     if(!rows.length) html += `<tr><td colspan="7" class="empty">No team members yet.</td></tr>`;
@@ -641,7 +699,13 @@ function pageAttendance(){
   $('#mainContent').innerHTML = html;
 }
 
-function openAttendanceForm(empId, date){
+async function changeAttendanceDate(value){
+  window.__attDate = value;
+  await ensureAttendanceMonthLoaded(value.slice(0,7));
+  renderPage();
+}
+async function openAttendanceForm(empId, date){
+  await ensureAttendanceMonthLoaded(date.slice(0,7));
   const rec = DB.attendance[attKey(empId, date)] || {};
   const inVal = rec.checkIn ? new Date(rec.checkIn).toTimeString().slice(0,5) : '';
   const outVal = rec.checkOut ? new Date(rec.checkOut).toTimeString().slice(0,5) : '';
@@ -665,12 +729,12 @@ function submitAttendanceEdit(){
   rec.checkOut = outTime ? new Date(date+'T'+outTime+':00').toISOString() : null;
   DB.attendance[key] = rec;
   closeModal(); toast('Attendance updated'); renderPage();
-  saveDB('attendance');
+  saveAttendanceMonth(date.slice(0,7));
 }
 function clearAttendance(empId, date){
   delete DB.attendance[attKey(empId, date)];
   closeModal(); toast('Record cleared'); renderPage();
-  saveDB('attendance');
+  saveAttendanceMonth(date.slice(0,7));
 }
 
 /* ============================================================
@@ -927,6 +991,11 @@ function daysInMonth(ym){ // ym = 'YYYY-MM'
   const [y,m] = ym.split('-').map(Number);
   return new Date(y, m, 0).getDate();
 }
+async function changeReportMonth(value){
+  window.__reportMonth = value;
+  await ensureAttendanceMonthLoaded(value);
+  renderPage();
+}
 function pageReports(){
   const ym = window.__reportMonth || todayStr().slice(0,7);
   const totalDays = daysInMonth(ym);
@@ -939,7 +1008,7 @@ function pageReports(){
 
   let html = `<h2 class="page-title">Reports</h2><p class="page-sub">Monthly attendance register — every employee, every day.</p>`;
   html += `<div class="filter-row">
-    <input type="month" value="${ym}" onchange="window.__reportMonth=this.value; renderPage();">
+    <input type="month" value="${ym}" onchange="changeReportMonth(this.value)">
     ${CURRENT.role==='FOUNDER' ? `<select onchange="window.__reportTeam=this.value; renderPage();">
       <option value="">All teams</option>
       ${DB.teams.map(t=>`<option value="${t.id}" ${teamFilter===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
@@ -1015,7 +1084,8 @@ function downloadCsv(filename, rows){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-function downloadAttendanceCsv(ym){
+async function downloadAttendanceCsv(ym){
+  await ensureAttendanceMonthLoaded(ym);
   const totalDays = daysInMonth(ym);
   const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
   const teamFilter = window.__reportTeam || '';
@@ -1087,6 +1157,11 @@ function calcSalary(emp, ym){
   const netPayable = grossEarned - advances;
   return { present, paidLeave, sundaysPaid, absent, perDayRate, payableDays, grossEarned, advances, netPayable, baseSalary, dailyRate, isDaily };
 }
+async function changeSalaryMonth(value){
+  window.__salaryMonth = value;
+  await ensureAttendanceMonthLoaded(value);
+  renderPage();
+}
 function pageSalary(){
   const ym = window.__salaryMonth || todayStr().slice(0,7);
   const monthLabel = new Date(ym+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long', year:'numeric'});
@@ -1096,7 +1171,7 @@ function pageSalary(){
 
   let html = `<h2 class="page-title">Salary calculator</h2><p class="page-sub">${monthLabel} — based on attendance, approved leave, and advances.</p>`;
   html += `<div class="filter-row">
-    <input type="month" value="${ym}" onchange="window.__salaryMonth=this.value; renderPage();">
+    <input type="month" value="${ym}" onchange="changeSalaryMonth(this.value)">
     <select onchange="window.__salaryTeam=this.value; renderPage();">
       <option value="">All teams</option>
       ${DB.teams.map(t=>`<option value="${t.id}" ${teamFilter===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
@@ -1134,7 +1209,8 @@ function pageSalary(){
   html += `<p class="note" style="margin-top:18px;">This is a working estimate for internal reference: pay rate (monthly ÷ days in month, or a set per-day rate) × days paid (present + approved leave + Sundays), minus advances approved this month. It doesn't account for PF, ESI, professional tax, or TDS — run final numbers through your accountant before disbursing.</p>`;
   $('#mainContent').innerHTML = html;
 }
-function downloadSalaryCsv(ym){
+async function downloadSalaryCsv(ym){
+  await ensureAttendanceMonthLoaded(ym);
   const teamFilter = window.__salaryTeam || '';
   let people = DB.employees.filter(e=>e.baseSalary || e.dailyRate);
   if(teamFilter) people = people.filter(e=>e.team===teamFilter);
