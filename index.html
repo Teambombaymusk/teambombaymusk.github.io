@@ -362,7 +362,7 @@
    so everyone who opens this app sees the same live data.
    ============================================================ */
 
-let DB = { employees: [], teams: [], attendance: {}, leaves: [], advances: [], tasks: [] };
+let DB = { employees: [], teams: [], attendance: {}, leaves: [], advances: [], tasks: [], overtime: {} };
 let CURRENT = null; // logged in employee object
 let ACTIVE_TAB = 'dashboard';
 
@@ -389,7 +389,7 @@ function toast(msg){
 const loadedAttendanceMonths = new Set();
 
 async function loadDB(){
-  const keys = ['employees','teams','leaves','advances','tasks'];
+  const keys = ['employees','teams','leaves','advances','tasks','overtime'];
   let hadError = false;
   const results = await Promise.all(keys.map(async (k) => {
     try{ return await window.storage.get(k, true); }
@@ -397,7 +397,7 @@ async function loadDB(){
   }));
   keys.forEach((k, i) => {
     const res = results[i];
-    DB[k] = res && res.value ? JSON.parse(res.value) : [];
+    DB[k] = res && res.value ? JSON.parse(res.value) : (k==='overtime' ? {} : []);
   });
   DB.attendance = {};
   if(hadError){
@@ -1240,13 +1240,24 @@ function calcSalary(emp, ym){
   const advances = DB.advances
     .filter(a => a.empId===emp.id && a.status==='APPROVED' && a.appliedOn.slice(0,7)===ym)
     .reduce((sum,a)=>sum+a.amount, 0);
-  const netPayable = grossEarned - advances;
-  return { present, paidLeave, sundaysPaid, absent, perDayRate, payableDays, grossEarned, advances, netPayable, baseSalary, dailyRate, isDaily };
+  const overtime = (DB.overtime && DB.overtime[otKey(emp.id, ym)]) || 0;
+  const netPayable = grossEarned - advances + overtime;
+  return { present, paidLeave, sundaysPaid, absent, perDayRate, payableDays, grossEarned, advances, overtime, netPayable, baseSalary, dailyRate, isDaily };
 }
+function otKey(empId, ym){ return empId+'::'+ym; }
 async function changeSalaryMonth(value){
   window.__salaryMonth = value;
   await ensureAttendanceMonthLoaded(value);
   renderPage();
+}
+function updateOvertime(empId, ym, value){
+  const amount = parseFloat(value) || 0;
+  if(!DB.overtime) DB.overtime = {};
+  const key = otKey(empId, ym);
+  if(amount > 0) DB.overtime[key] = amount;
+  else delete DB.overtime[key];
+  renderPage();
+  saveDB('overtime');
 }
 function pageSalary(){
   const ym = window.__salaryMonth || todayStr().slice(0,7);
@@ -1272,7 +1283,7 @@ function pageSalary(){
     html += `<div class="empty"><div class="big">₹</div><div class="t">No salaries set yet</div><div class="s">Add a monthly salary or per-day rate to each person in People to see calculations here.</div></div>`;
   } else {
     let totalPayable = 0;
-    html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Rate</th><th>Present</th><th>Leave</th><th>Sundays</th><th>Absent</th><th>Gross</th><th>Advances</th><th>Net payable</th></tr></thead><tbody>`;
+    html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Rate</th><th>Present</th><th>Leave</th><th>Sundays</th><th>Absent</th><th>Gross</th><th>Advances</th><th>Overtime (₹)</th><th>Net payable</th></tr></thead><tbody>`;
     withSalary.forEach(e=>{
       const r = calcSalary(e, ym);
       totalPayable += r.netPayable;
@@ -1282,9 +1293,10 @@ function pageSalary(){
         <td class="mono" style="color:var(--danger);">${r.absent}</td>
         <td class="mono">₹${r.grossEarned.toFixed(0)}</td>
         <td class="mono" style="color:var(--danger);">${r.advances?'−₹'+r.advances.toLocaleString('en-IN'):'—'}</td>
+        <td class="mono"><input type="number" min="0" value="${r.overtime||''}" placeholder="0" style="width:90px; padding:6px 8px; border-radius:7px; border:1.5px solid var(--amber-line); background:var(--panel); color:var(--ink); font-family:'JetBrains Mono',monospace; font-size:12.5px;" onchange="updateOvertime('${e.id}','${ym}',this.value)"></td>
         <td class="mono" style="font-weight:700; color:var(--musk);">₹${r.netPayable.toFixed(0)}</td></tr>`;
     });
-    html += `</tbody><tfoot><tr style="border-top:2px solid var(--amber-line);"><td colspan="8" style="font-weight:700;">Total payable this month</td><td class="mono" style="font-weight:700; font-size:15px;">₹${totalPayable.toFixed(0)}</td></tr></tfoot></table></div>`;
+    html += `</tbody><tfoot><tr style="border-top:2px solid var(--amber-line);"><td colspan="9" style="font-weight:700;">Total payable this month</td><td class="mono" style="font-weight:700; font-size:15px;">₹${totalPayable.toFixed(0)}</td></tr></tfoot></table></div>`;
   }
 
   if(withoutSalary.length){
@@ -1292,7 +1304,7 @@ function pageSalary(){
     <div class="card"><p class="note">${withoutSalary.map(e=>escapeHtml(e.name)).join(', ')} — edit them in People to add a monthly salary or per-day rate.</p></div>`;
   }
 
-  html += `<p class="note" style="margin-top:18px;">This is a working estimate for internal reference: pay rate (monthly ÷ days in month, or a set per-day rate) × days paid (present + approved leave + Sundays), minus advances approved this month. It doesn't account for PF, ESI, professional tax, or TDS — run final numbers through your accountant before disbursing.</p>`;
+  html += `<p class="note" style="margin-top:18px;">This is a working estimate for internal reference: pay rate (monthly ÷ days in month, or a set per-day rate) × days paid (present + approved leave + Sundays), plus overtime, minus advances approved this month. It doesn't account for PF, ESI, professional tax, or TDS — run final numbers through your accountant before disbursing.</p>`;
   $('#mainContent').innerHTML = html;
 }
 async function downloadSalaryCsv(ym){
@@ -1300,10 +1312,10 @@ async function downloadSalaryCsv(ym){
   const teamFilter = window.__salaryTeam || '';
   let people = DB.employees.filter(e=>e.baseSalary || e.dailyRate);
   if(teamFilter) people = people.filter(e=>e.team===teamFilter);
-  const rows = [['Employee','Employee ID','Team','Salary Type','Monthly Salary','Daily Rate','Present','Paid Leave','Sundays Paid','Absent','Effective Per-day Rate','Gross Earned','Advances Deducted','Net Payable']];
+  const rows = [['Employee','Employee ID','Team','Salary Type','Monthly Salary','Daily Rate','Present','Paid Leave','Sundays Paid','Absent','Effective Per-day Rate','Gross Earned','Advances Deducted','Overtime','Net Payable']];
   people.forEach(e=>{
     const r = calcSalary(e, ym);
-    rows.push([e.name, e.id, teamName(e.team), r.isDaily?'Per-day':'Monthly', r.baseSalary||'', r.dailyRate||'', r.present, r.paidLeave, r.sundaysPaid, r.absent, r.perDayRate.toFixed(2), r.grossEarned.toFixed(0), r.advances, r.netPayable.toFixed(0)]);
+    rows.push([e.name, e.id, teamName(e.team), r.isDaily?'Per-day':'Monthly', r.baseSalary||'', r.dailyRate||'', r.present, r.paidLeave, r.sundaysPaid, r.absent, r.perDayRate.toFixed(2), r.grossEarned.toFixed(0), r.advances, r.overtime, r.netPayable.toFixed(0)]);
   });
   downloadCsv(`bombay-musk-salary-${ym}.csv`, rows);
   toast('Salary CSV downloaded');
