@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bombay Musk — Team Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#111111;
+    --paper:#FAFAFA;
+    --panel:#FFFFFF;
+    --oud:#111111;
+    --oud-deep:#000000;
+    --oud-soft:#EDEDED;
+    --musk:#111111;
+    --musk-soft:#EDEDED;
+    --amber-line:#DEDEDE;
+    --danger:#111111;
+    --danger-soft:#E4E4E4;
+    --gold:#111111;
+    --muted:#767676;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(0,0,0,0.05), 0 8px 24px -12px rgba(0,0,0,0.16);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{ font-family:'Fraunces',serif; font-weight:600; letter-spacing:-0.01em; }
+  .mono{ font-family:'JetBrains Mono',monospace; }
+  button{ font-family:inherit; cursor:pointer; }
+  input, select, textarea{ font-family:inherit; }
+  ::selection{ background:var(--oud-soft); }
+
+  /* ---------- Login ---------- */
+  #loginScreen{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(circle at 15% 15%, rgba(0,0,0,0.05), transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(0,0,0,0.04), transparent 45%),
+      var(--paper);
+    padding:24px;
+  }
+  .login-card{
+    width:100%; max-width:380px; background:var(--panel); border-radius:20px;
+    box-shadow:var(--shadow); padding:40px 32px 32px; border:1px solid var(--amber-line);
+  }
+  .wordmark{ text-align:center; margin-bottom:6px; }
+  .seal{ display:flex; justify-content:center; margin-bottom:10px; }
+  .seal img{ width:200px; max-width:78%; height:auto; object-fit:contain; }
+  .wordmark .top{ font-size:28px; line-height:1; color:var(--oud-deep); }
+  .wordmark .bottom{ font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.28em; text-transform:uppercase; color:var(--muted); margin-top:6px; }
+  .tagline{ text-align:center; color:var(--muted); font-size:12.5px; margin:2px 0 28px; letter-spacing:0.02em; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:6px; }
+  .field input, .field select, .field textarea{
+    width:100%; padding:11px 13px; border-radius:10px; border:1.5px solid var(--amber-line);
+    background:#fff; font-size:14.5px; color:var(--ink); outline:none; transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{ border-color:var(--oud); }
+  .btn{
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    padding:11px 18px; border-radius:10px; border:none; font-weight:600; font-size:14px;
+    transition:transform .08s, opacity .15s; letter-spacing:0.01em;
+  }
+  .btn:active{ transform:scale(0.98); }
+  .btn-primary{ background:var(--oud); color:#fff; width:100%; }
+  .btn-primary:hover{ background:var(--oud-deep); }
+  .btn-ghost{ background:transparent; color:var(--oud); border:1.5px solid var(--amber-line); }
+  .btn-ghost:hover{ border-color:var(--oud); }
+  .btn-sm{ padding:7px 12px; font-size:12.5px; border-radius:8px; }
+  .btn-danger{ background:var(--danger-soft); color:var(--danger); }
+  .btn-success{ background:var(--musk-soft); color:var(--musk); }
+  .login-hint{ margin-top:20px; padding:12px 14px; background:var(--oud-soft); border-radius:10px; font-size:12px; color:var(--oud-deep); line-height:1.5; }
+  .login-error{ color:var(--danger); font-size:13px; margin-top:10px; text-align:center; min-height:18px; }
+
+  /* ---------- App shell ---------- */
+  #app{ display:none; min-height:100vh; padding-bottom:76px; position:relative; }
+  .watermark{
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-repeat:no-repeat; background-position:center 60vh; background-size:520px;
+    opacity:0.05;
+  }
+  header.topbar, main, nav.tabbar{ position:relative; z-index:1; }
+  header.topbar{
+    position:sticky; top:0; z-index:20; background:var(--paper);
+    border-bottom:1px solid var(--amber-line); padding:14px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .brand-mini{ display:flex; align-items:center; gap:10px; }
+  .brand-mini .mark{ width:36px;height:36px;border-radius:9px; background:#fff; border:1px solid var(--amber-line); display:flex;align-items:center;justify-content:center; overflow:hidden; }
+  .brand-mini .name{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; line-height:1.1; }
+  .brand-mini .sub{ font-size:10.5px; color:var(--muted); letter-spacing:0.05em; }
+  .user-chip{ display:flex; align-items:center; gap:10px; }
+  .user-chip .who{ text-align:right; }
+  .user-chip .who .n{ font-size:13px; font-weight:600; }
+  .user-chip .who .r{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .avatar{ width:32px;height:32px;border-radius:50%; background:var(--musk-soft); color:var(--musk); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+
+  main{ max-width:960px; margin:0 auto; padding:20px; }
+  .page-title{ font-size:22px; margin:4px 0 3px; }
+  .page-sub{ color:var(--muted); font-size:13.5px; margin-bottom:22px; }
+
+  nav.tabbar{
+    position:fixed; bottom:0; left:0; right:0; z-index:20; background:var(--panel);
+    border-top:1px solid var(--amber-line); display:flex; overflow-x:auto;
+    box-shadow:0 -4px 16px rgba(36,26,18,0.06);
+  }
+  nav.tabbar .tab{
+    flex:1; min-width:64px; display:flex; flex-direction:column; align-items:center; gap:4px;
+    padding:10px 4px 8px; background:none; border:none; color:var(--muted); font-size:10.5px; font-weight:600;
+    letter-spacing:0.02em; border-top:2px solid transparent;
+  }
+  nav.tabbar .tab.active{ color:var(--oud); border-top-color:var(--oud); }
+  nav.tabbar .tab .ic{ font-size:18px; line-height:1; }
+
+  /* ---------- Cards / grid ---------- */
+  .grid{ display:grid; gap:14px; }
+  .grid-2{ grid-template-columns:1fr 1fr; }
+  .grid-3{ grid-template-columns:repeat(3,1fr); }
+  @media (max-width:640px){ .grid-2, .grid-3{ grid-template-columns:1fr; } }
+  .card{ background:var(--panel); border:1px solid var(--amber-line); border-radius:var(--radius); padding:18px; }
+  .stat{ background:var(--panel); border:1px solid var(--amber-line); border-radius:var(--radius); padding:16px 18px; }
+  .stat .num{ font-family:'Fraunces',serif; font-size:28px; font-weight:600; color:var(--oud-deep); }
+  .stat .lbl{ font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:2px;}
+  .section-head{ display:flex; align-items:center; justify-content:space-between; margin:26px 0 12px; }
+  .section-head h3{ font-size:15.5px; margin:0; }
+
+  .clockcard{
+    background:linear-gradient(135deg, var(--oud-deep), var(--oud)); color:#fff; border-radius:18px;
+    padding:24px; text-align:center; box-shadow:var(--shadow);
+  }
+  .clockcard .time{ font-family:'JetBrains Mono',monospace; font-size:34px; font-weight:500; letter-spacing:0.02em; }
+  .clockcard .date{ font-size:12.5px; opacity:0.85; margin-top:2px; }
+  .clockcard .status{ margin:14px 0 16px; font-size:13px; opacity:0.92; }
+  .clockcard .bigbtn{
+    background:#fff; color:var(--oud-deep); border:none; padding:14px 30px; border-radius:12px;
+    font-weight:700; font-size:15px; width:100%;
+  }
+  .clockcard .bigbtn.out{ background:rgba(255,255,255,0.16); color:#fff; border:1.5px solid rgba(255,255,255,0.4); }
+
+  table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+  th{ text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); padding:8px 10px; border-bottom:1.5px solid var(--amber-line); }
+  td{ padding:10px 10px; border-bottom:1px solid var(--amber-line); vertical-align:middle; }
+  tr:last-child td{ border-bottom:none; }
+  .table-wrap{ overflow-x:auto; }
+
+  .pill{ display:inline-flex; align-items:center; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; }
+  .pill-pending{ background:#fff; color:var(--ink); border:1.5px solid var(--ink); }
+  .pill-approved{ background:var(--ink); color:#fff; }
+  .pill-rejected{ background:#fff; color:var(--muted); border:1.5px solid var(--amber-line); text-decoration:line-through; }
+  .pill-present{ background:var(--ink); color:#fff; }
+  .pill-absent{ background:#fff; color:var(--muted); border:1.5px solid var(--amber-line); text-decoration:line-through; }
+  .pill-todo{ background:#fff; color:var(--muted); border:1.5px solid var(--amber-line); }
+  .daydot{ display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; border-radius:6px; font-size:10px; font-weight:700; }
+  .dot-present{ background:var(--ink); color:#fff; }
+  .dot-absent{ background:#fff; color:var(--muted); border:1px solid var(--amber-line); }
+  .dot-leave{ background:#fff; color:var(--ink); border:1.5px solid var(--ink); }
+  .dot-future{ background:transparent; }
+  .pill-progress{ background:#fff; color:var(--ink); border:1.5px solid var(--ink); }
+  .pill-done{ background:var(--ink); color:#fff; }
+
+  .empty{ text-align:center; padding:40px 20px; color:var(--muted); }
+  .empty .big{ font-size:32px; margin-bottom:10px; }
+  .empty .t{ font-weight:600; color:var(--ink); font-size:14px; margin-bottom:4px; }
+  .empty .s{ font-size:12.5px; }
+
+  .modal-bg{ position:fixed; inset:0; background:rgba(36,26,18,0.42); z-index:50; display:flex; align-items:flex-end; justify-content:center; }
+  @media (min-width:640px){ .modal-bg{ align-items:center; } }
+  .modal{ background:var(--panel); border-radius:18px 18px 0 0; width:100%; max-width:460px; max-height:88vh; overflow-y:auto; padding:24px 22px 28px; }
+  @media (min-width:640px){ .modal{ border-radius:18px; } }
+  .modal h3{ margin:0 0 4px; font-size:18px; }
+  .modal .close{ float:right; background:none; border:none; font-size:20px; color:var(--muted); }
+  .row-actions{ display:flex; gap:8px; margin-top:4px; }
+  .taskcol{ background:#F2F2F2; border-radius:var(--radius); padding:12px; min-height:80px; }
+  .taskcol h4{ font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin:2px 6px 10px; }
+  .taskcard{ background:var(--panel); border:1px solid var(--amber-line); border-radius:10px; padding:11px 12px; margin-bottom:8px; font-size:13px; }
+  .taskcard .tt{ font-weight:600; margin-bottom:4px; }
+  .taskcard .meta{ font-size:11px; color:var(--muted); display:flex; justify-content:space-between; align-items:center; margin-top:8px;}
+  .badge-role{ font-size:9.5px; background:var(--musk-soft); color:var(--musk); padding:2px 7px; border-radius:6px; text-transform:uppercase; letter-spacing:0.04em; font-weight:700;}
+  .toast{ position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 18px; border-radius:10px; font-size:13px; z-index:80; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none;}
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-4px); }
+  .filter-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .filter-row select, .filter-row input[type=date]{ padding:8px 10px; border-radius:8px; border:1.5px solid var(--amber-line); font-size:12.5px; background:#fff; }
+  .link-btn{ background:none;border:none;color:var(--oud);font-weight:600;font-size:12.5px; }
+  .divider{ height:1px; background:var(--amber-line); margin:18px 0; }
+  .note{ font-size:11.5px; color:var(--muted); line-height:1.5; }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="loginScreen">
+  <div class="login-card">
+    <div class="seal"><img id="loginLogo" alt="Bombay Musk" /></div>
+    <div class="wordmark">
+      <div class="bottom">Team Hub</div>
+    </div>
+    <div class="tagline">Attendance · Leaves · Advances · Tasks</div>
+    <form id="loginForm">
+      <div class="field">
+        <label>Employee ID</label>
+        <input type="text" id="loginId" placeholder="e.g. BM-001" autocomplete="off" required>
+      </div>
+      <div class="field">
+        <label>PIN</label>
+        <input type="password" id="loginPin" placeholder="4–6 digit PIN" autocomplete="off" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Sign in</button>
+      <div class="login-error" id="loginError"></div>
+    </form>
+    <div class="login-hint" id="loginHint" style="display:none;">Setting this up for the first time? Ask your admin for your Employee ID and PIN.</div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app">
+  <div class="watermark" id="appWatermark"></div>
+  <header class="topbar">
+    <div class="brand-mini">
+      <div class="mark"><img id="headerLogo" alt="Bombay Musk" style="width:100%;height:100%;object-fit:contain;padding:4px;box-sizing:border-box;" /></div>
+      <div>
+        <div class="name">Bombay Musk</div>
+        <div class="sub">TEAM HUB</div>
+      </div>
+    </div>
+    <div class="user-chip">
+      <div class="who">
+        <div class="n" id="chipName">—</div>
+        <div class="r" id="chipRole">—</div>
+      </div>
+      <div class="avatar" id="chipAvatar">–</div>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <main id="mainContent"></main>
+
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+  /* ============================================================
+     REAL HOSTED BACKEND (Firebase Firestore + Anonymous Auth)
+     Fill in your Firebase project's config below — Bombay Musk
+     will send it to you after setting up their free project.
+     ============================================================ */
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA4LUU3aErWFL91oDqLWZpv7VUnIIJ1Rn8",
+    authDomain: "internal-software-70a0a.firebaseapp.com",
+    projectId: "internal-software-70a0a",
+    storageBucket: "internal-software-70a0a.firebasestorage.app",
+    messagingSenderId: "282649181388",
+    appId: "1:282649181388:web:6409402fcd4b503d1ed669"
+  };
+
+  const COLLECTION = "bombayMuskHub";
+  let db = null, ready = Promise.resolve();
+
+  if(firebaseConfig.apiKey && firebaseConfig.apiKey.indexOf("FIREBASE_") !== 0){
+    const fbApp = initializeApp(firebaseConfig);
+    db = getFirestore(fbApp);
+    const auth = getAuth(fbApp);
+    ready = new Promise((resolve) => {
+      signInAnonymously(auth).then(resolve).catch((e)=>{ console.error('Firebase auth failed', e); resolve(); });
+    });
+  } else {
+    console.warn('Firebase config not set yet — the app will not save or sync data.');
+  }
+
+  // Compatible with the same window.storage.get/set calls the app already uses.
+  window.storage = {
+    get: async (key) => {
+      if(!db) return null;
+      await ready;
+      const snap = await getDoc(doc(db, COLLECTION, key));
+      return snap.exists() ? { key, value: snap.data().value } : null;
+    },
+    set: async (key, value) => {
+      if(!db) throw new Error('Firebase not configured');
+      await ready;
+      await setDoc(doc(db, COLLECTION, key), { value });
+      return { key, value };
+    }
+  };
+  window.__storageReady = true;
+</script>
+<script>
+/* ============================================================
+   BOMBAY MUSK TEAM HUB — prototype HRMS
+   Data is shared cloud storage (window.storage, shared=true)
+   so everyone who opens this app sees the same live data.
+   ============================================================ */
+
+let DB = { employees: [], teams: [], attendance: {}, leaves: [], advances: [], tasks: [] };
+let CURRENT = null; // logged in employee object
+let ACTIVE_TAB = 'dashboard';
+
+const LOGO_FULL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAkAAAAJACAIAAADq+E5hAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAydpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDkuMC1jMDAxIDc5LjE0ZWNiNDJmMmMsIDIwMjMvMDEvMTMtMTI6MjU6NDQgICAgICAgICI+IDxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+IDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyIgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iIHhtbG5zOnN0UmVmPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvc1R5cGUvUmVzb3VyY2VSZWYjIiB4bXA6Q3JlYXRvclRvb2w9IkFkb2JlIFBob3Rvc2hvcCAyNC4yIChXaW5kb3dzKSIgeG1wTU06SW5zdGFuY2VJRD0ieG1wLmlpZDpFMTIwOTBDRjREQkQxMUYxQTc3REE3ODY4NzVCRjlDQyIgeG1wTU06RG9jdW1lbnRJRD0ieG1wLmRpZDpFMTIwOTBEMDREQkQxMUYxQTc3REE3ODY4NzVCRjlDQyI+IDx4bXBNTTpEZXJpdmVkRnJvbSBzdFJlZjppbnN0YW5jZUlEPSJ4bXAuaWlkOkUxMjA5MENENERCRDExRjFBNzdEQTc4Njg3NUJGOUNDIiBzdFJlZjpkb2N1bWVudElEPSJ4bXAuZGlkOkUxMjA5MENFNERCRDExRjFBNzdEQTc4Njg3NUJGOUNDIi8+IDwvcmRmOkRlc2NyaXB0aW9uPiA8L3JkZjpSREY+IDwveDp4bXBtZXRhPiA8P3hwYWNrZXQgZW5kPSJyIj8+vBrLVQAAShBJREFUeNrs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";
+const LOGO_MONO = "data:image/png;base64,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";
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const uid = (p='id') => p + '_' + Math.random().toString(36).slice(2,9);
+const todayStr = () => new Date().toISOString().slice(0,10);
+const fmtDate = (d) => new Date(d+'T00:00:00').toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+const fmtTime = (iso) => new Date(iso).toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+const escapeHtml = (s='') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function toast(msg){
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+/* ---------------- storage helpers ---------------- */
+async function loadDB(){
+  const keys = ['employees','teams','attendance','leaves','advances','tasks'];
+  const results = await Promise.all(keys.map(k =>
+    window.storage.get(k, true).catch(()=>null)
+  ));
+  keys.forEach((k, i) => {
+    const res = results[i];
+    DB[k] = res && res.value ? JSON.parse(res.value) : (k==='attendance' ? {} : []);
+  });
+  // seed default admin if nothing exists yet
+  if(!DB.employees.length){
+    DB.employees.push({
+      id:'admin', name:'Founder', pin:'8827', role:'FOUNDER', team:null, phone:'', joinDate: todayStr()
+    });
+    await saveDB('employees');
+  }
+}
+function saveDB(key){
+  // Optimistic: fire-and-forget so the UI never blocks on network round-trips.
+  return window.storage.set(key, JSON.stringify(DB[key]), true)
+    .catch(()=> toast('Sync issue — retrying in background.'));
+}
+
+/* ---------------- auth ---------------- */
+$('#loginForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const id = $('#loginId').value.trim();
+  const pin = $('#loginPin').value.trim();
+  const emp = DB.employees.find(x => x.id.toLowerCase() === id.toLowerCase() && x.pin === pin);
+  if(!emp){ $('#loginError').textContent = 'Employee ID or PIN is incorrect.'; return; }
+  CURRENT = emp;
+  ACTIVE_TAB = 'dashboard';
+  $('#loginScreen').style.display = 'none';
+  $('#app').style.display = 'block';
+  renderShell();
+});
+function logout(){
+  CURRENT = null;
+  $('#app').style.display = 'none';
+  $('#loginScreen').style.display = 'flex';
+  $('#loginId').value=''; $('#loginPin').value=''; $('#loginError').textContent='';
+}
+
+/* ---------------- shell / tabs ---------------- */
+function tabsForRole(role){
+  const base = [
+    {id:'dashboard', label:'Home', ic:'⌂'},
+    {id:'attendance', label:'Attendance', ic:'◔'},
+    {id:'leave', label:'Leave', ic:'☾'},
+    {id:'advance', label:'Advance', ic:'₹'},
+    {id:'tasks', label:'Tasks', ic:'✓'},
+  ];
+  if(role === 'TEAM_LEAD' || role === 'FOUNDER') base.push({id:'team', label:'Team', ic:'◎'});
+  if(role === 'TEAM_LEAD' || role === 'FOUNDER') base.push({id:'reports', label:'Reports', ic:'▤'});
+  if(role === 'FOUNDER') base.push({id:'salary', label:'Salary', ic:'₹'});
+  if(role === 'FOUNDER') base.push({id:'people', label:'People', ic:'⚙'});
+  return base;
+}
+function renderShell(){
+  $('#chipName').textContent = CURRENT.name;
+  $('#chipRole').textContent = CURRENT.role.replace('_',' ');
+  $('#chipAvatar').textContent = CURRENT.name.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  const tabs = tabsForRole(CURRENT.role);
+  $('#tabbar').innerHTML = tabs.map(t => `
+    <button class="tab ${ACTIVE_TAB===t.id?'active':''}" onclick="switchTab('${t.id}')">
+      <span class="ic">${t.ic}</span><span>${t.label}</span>
+    </button>`).join('');
+  renderPage();
+}
+function switchTab(id){ ACTIVE_TAB = id; renderShell(); }
+function renderPage(){
+  const map = { dashboard: pageDashboard, attendance: pageAttendance, leave: pageLeave, advance: pageAdvance, tasks: pageTasks, team: pageTeam, reports: pageReports, salary: pageSalary, people: pagePeople };
+  if(ACTIVE_TAB === 'salary' && CURRENT.role !== 'FOUNDER'){ ACTIVE_TAB = 'dashboard'; }
+  ($('#mainContent').innerHTML = '');
+  (map[ACTIVE_TAB] || pageDashboard)();
+}
+function closeModal(){ $('#modalRoot').innerHTML = ''; }
+function openModal(html){ $('#modalRoot').innerHTML = `<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">${html}</div></div>`; }
+
+/* ---------------- shared helpers ---------------- */
+function teamName(id){ const t = DB.teams.find(x=>x.id===id); return t ? t.name : '—'; }
+function empName(id){ const e = DB.employees.find(x=>x.id===id); return e ? e.name : id; }
+function myTeamMemberIds(){
+  if(CURRENT.role === 'FOUNDER') return DB.employees.map(e=>e.id);
+  const myTeams = DB.teams.filter(t=>t.leadId===CURRENT.id).map(t=>t.id);
+  return DB.employees.filter(e => myTeams.includes(e.team) || e.id===CURRENT.id).map(e=>e.id);
+}
+function hoursBetween(inIso, outIso){
+  if(!inIso || !outIso) return null;
+  const ms = new Date(outIso) - new Date(inIso);
+  return Math.max(0, ms/3600000);
+}
+function attKey(empId, date){ return empId+'::'+date; }
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function pageDashboard(){
+  const isManager = CURRENT.role === 'FOUNDER' || CURRENT.role === 'TEAM_LEAD';
+  let html = `<h2 class="page-title">Hi, ${escapeHtml(CURRENT.name.split(' ')[0])} 👋</h2>
+  <p class="page-sub">${new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long'})}</p>`;
+
+  html += clockCardHTML();
+
+  if(isManager){
+    const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
+    const total = DB.employees.filter(e=>scopeIds.includes(e.id)).length;
+    const presentToday = DB.employees.filter(e=>scopeIds.includes(e.id) && DB.attendance[attKey(e.id, todayStr())]?.checkIn).length;
+    const pendingLeaves = DB.leaves.filter(l=>l.status==='PENDING' && scopeIds.includes(l.empId)).length;
+    const pendingAdv = DB.advances.filter(a=>a.status==='PENDING' && scopeIds.includes(a.empId)).length;
+    const openTasks = DB.tasks.filter(t=>t.status!=='DONE' && scopeIds.includes(t.assignedTo)).length;
+
+    html += `<div class="section-head"><h3>${CURRENT.role==='FOUNDER'?'Company':'Team'} snapshot</h3></div>
+    <div class="grid grid-3">
+      <div class="stat"><div class="num">${presentToday}/${total}</div><div class="lbl">Checked in today</div></div>
+      <div class="stat"><div class="num">${pendingLeaves}</div><div class="lbl">Pending leaves</div></div>
+      <div class="stat"><div class="num">${pendingAdv}</div><div class="lbl">Pending advances</div></div>
+    </div>
+    <div class="grid grid-3" style="margin-top:14px;">
+      <div class="stat"><div class="num">${openTasks}</div><div class="lbl">Open tasks</div></div>
+      <div class="stat"><div class="num">${DB.teams.length}</div><div class="lbl">Teams</div></div>
+      <div class="stat"><div class="num">${total}</div><div class="lbl">People</div></div>
+    </div>`;
+
+    if(pendingLeaves || pendingAdv){
+      html += `<div class="section-head"><h3>Needs your approval</h3></div><div class="card">`;
+      const pl = DB.leaves.filter(l=>l.status==='PENDING' && scopeIds.includes(l.empId)).slice(0,3);
+      const pa = DB.advances.filter(a=>a.status==='PENDING' && scopeIds.includes(a.empId)).slice(0,3);
+      if(!pl.length && !pa.length) html += `<p class="note">All caught up.</p>`;
+      pl.forEach(l => html += rowLine(`${empName(l.empId)} · leave`, `${fmtDate(l.from)} → ${fmtDate(l.to)}`, `<button class="btn btn-sm btn-success" onclick="decideLeave('${l.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideLeave('${l.id}','REJECTED')">Reject</button>`));
+      pa.forEach(a => html += rowLine(`${empName(a.empId)} · advance`, `₹${a.amount}`, `<button class="btn btn-sm btn-success" onclick="decideAdvance('${a.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideAdvance('${a.id}','REJECTED')">Reject</button>`));
+      html += `</div>`;
+    }
+  } else {
+    // employee view
+    const myAtt = Object.keys(DB.attendance).filter(k=>k.startsWith(CURRENT.id+'::'));
+    const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate()-7);
+    let weekHrs = 0;
+    myAtt.forEach(k=>{
+      const d = k.split('::')[1];
+      if(new Date(d) >= weekAgo){ const h = hoursBetween(DB.attendance[k].checkIn, DB.attendance[k].checkOut); if(h) weekHrs += h; }
+    });
+    const myLeaves = DB.leaves.filter(l=>l.empId===CURRENT.id && l.status==='PENDING').length;
+    const myTasks = DB.tasks.filter(t=>t.assignedTo===CURRENT.id && t.status!=='DONE').length;
+    html += `<div class="grid grid-3" style="margin-top:22px;">
+      <div class="stat"><div class="num">${weekHrs.toFixed(1)}h</div><div class="lbl">Hours this week</div></div>
+      <div class="stat"><div class="num">${myLeaves}</div><div class="lbl">Pending leave</div></div>
+      <div class="stat"><div class="num">${myTasks}</div><div class="lbl">Open tasks</div></div>
+    </div>`;
+  }
+  $('#mainContent').innerHTML = html;
+}
+function rowLine(title, sub, actions){
+  return `<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--amber-line);">
+    <div><div style="font-weight:600; font-size:13.5px;">${escapeHtml(title)}</div><div style="font-size:12px; color:var(--muted);">${escapeHtml(sub)}</div></div>
+    <div class="row-actions">${actions}</div>
+  </div>`;
+}
+
+/* ============================================================
+   CLOCK CARD (check in/out)
+   ============================================================ */
+function clockCardHTML(){
+  const key = attKey(CURRENT.id, todayStr());
+  const rec = DB.attendance[key];
+  const now = new Date();
+  let statusLine, btnHtml;
+  if(!rec || !rec.checkIn){
+    statusLine = 'Not checked in yet';
+    btnHtml = `<button class="bigbtn" onclick="doCheckIn()">Check In</button>`;
+  } else if(rec.checkIn && !rec.checkOut){
+    statusLine = `Checked in at ${fmtTime(rec.checkIn)}`;
+    btnHtml = `<button class="bigbtn out" onclick="doCheckOut()">Check Out</button>`;
+  } else {
+    const h = hoursBetween(rec.checkIn, rec.checkOut);
+    statusLine = `In ${fmtTime(rec.checkIn)} · Out ${fmtTime(rec.checkOut)} · ${h.toFixed(1)}h logged`;
+    btnHtml = `<button class="bigbtn out" disabled style="opacity:0.6;">Day complete ✓</button>`;
+  }
+  return `<div class="clockcard" style="margin-top:18px;">
+    <div class="time mono">${now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})}</div>
+    <div class="date">${now.toLocaleDateString('en-IN',{weekday:'short', day:'numeric', month:'short'})}</div>
+    <div class="status">${statusLine}</div>
+    ${btnHtml}
+  </div>`;
+}
+function doCheckIn(){
+  const key = attKey(CURRENT.id, todayStr());
+  DB.attendance[key] = { checkIn: new Date().toISOString(), checkOut: null };
+  toast('Checked in ✓'); renderPage();
+  saveDB('attendance');
+}
+function doCheckOut(){
+  const key = attKey(CURRENT.id, todayStr());
+  if(DB.attendance[key]) DB.attendance[key].checkOut = new Date().toISOString();
+  toast('Checked out ✓'); renderPage();
+  saveDB('attendance');
+}
+
+/* ============================================================
+   ATTENDANCE PAGE
+   ============================================================ */
+function pageAttendance(){
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  let html = `<h2 class="page-title">Attendance</h2><p class="page-sub">${isManager?'Track check-ins across your team.':'Your check-in history.'}</p>`;
+  html += clockCardHTML();
+
+  if(isManager){
+    const scopeIds = myTeamMemberIds();
+    const date = window.__attDate || todayStr();
+    html += `<div class="section-head"><h3>Day view</h3></div>
+    <div class="filter-row"><input type="date" value="${date}" onchange="window.__attDate=this.value; renderPage();"></div>
+    <div class="card table-wrap"><table><thead><tr><th>Name</th><th>Team</th><th>In</th><th>Out</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody>`;
+    const rows = DB.employees.filter(e=>scopeIds.includes(e.id));
+    if(!rows.length) html += `<tr><td colspan="7" class="empty">No team members yet.</td></tr>`;
+    rows.forEach(e=>{
+      const rec = DB.attendance[attKey(e.id, date)];
+      const h = rec ? hoursBetween(rec.checkIn, rec.checkOut) : null;
+      html += `<tr><td>${escapeHtml(e.name)}</td><td>${teamName(e.team)}</td>
+        <td>${rec?.checkIn ? fmtTime(rec.checkIn) : '—'}</td>
+        <td>${rec?.checkOut ? fmtTime(rec.checkOut) : '—'}</td>
+        <td>${h!=null ? h.toFixed(1)+'h' : '—'}</td>
+        <td><span class="pill ${rec?.checkIn ? 'pill-present':'pill-absent'}">${rec?.checkIn ? 'Present':'Absent'}</span></td>
+        <td><button class="link-btn" onclick="openAttendanceForm('${e.id}','${date}')">Edit</button></td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+  } else {
+    html += `<div class="section-head"><h3>Your history</h3></div><div class="card table-wrap"><table><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Hours</th></tr></thead><tbody>`;
+    const mine = Object.keys(DB.attendance).filter(k=>k.startsWith(CURRENT.id+'::')).sort().reverse().slice(0,30);
+    if(!mine.length) html += `<tr><td colspan="4" class="empty">No records yet — check in above to start.</td></tr>`;
+    mine.forEach(k=>{
+      const d = k.split('::')[1]; const rec = DB.attendance[k];
+      const h = hoursBetween(rec.checkIn, rec.checkOut);
+      html += `<tr><td>${fmtDate(d)}</td><td>${rec.checkIn?fmtTime(rec.checkIn):'—'}</td><td>${rec.checkOut?fmtTime(rec.checkOut):'—'}</td><td>${h!=null?h.toFixed(1)+'h':'—'}</td></tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+  $('#mainContent').innerHTML = html;
+}
+
+function openAttendanceForm(empId, date){
+  const rec = DB.attendance[attKey(empId, date)] || {};
+  const inVal = rec.checkIn ? new Date(rec.checkIn).toTimeString().slice(0,5) : '';
+  const outVal = rec.checkOut ? new Date(rec.checkOut).toTimeString().slice(0,5) : '';
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>Edit attendance</h3>
+    <p class="note" style="margin-bottom:14px;">${escapeHtml(empName(empId))} · ${fmtDate(date)}</p>
+    <div class="field"><label>Check-in time</label><input type="time" id="attIn" value="${inVal}"></div>
+    <div class="field"><label>Check-out time</label><input type="time" id="attOut" value="${outVal}"></div>
+    <input type="hidden" id="attEmp" value="${empId}"><input type="hidden" id="attDate" value="${date}">
+    <button class="btn btn-primary" style="width:100%;" onclick="submitAttendanceEdit()">Save changes</button>
+    ${rec.checkIn ? `<button class="btn btn-ghost" style="width:100%; margin-top:8px;" onclick="clearAttendance('${empId}','${date}')">Clear record</button>` : ''}
+  `);
+}
+function submitAttendanceEdit(){
+  const empId = $('#attEmp').value, date = $('#attDate').value;
+  const inTime = $('#attIn').value, outTime = $('#attOut').value;
+  const key = attKey(empId, date);
+  const rec = {};
+  rec.checkIn = inTime ? new Date(date+'T'+inTime+':00').toISOString() : null;
+  rec.checkOut = outTime ? new Date(date+'T'+outTime+':00').toISOString() : null;
+  DB.attendance[key] = rec;
+  closeModal(); toast('Attendance updated'); renderPage();
+  saveDB('attendance');
+}
+function clearAttendance(empId, date){
+  delete DB.attendance[attKey(empId, date)];
+  closeModal(); toast('Record cleared'); renderPage();
+  saveDB('attendance');
+}
+
+/* ============================================================
+   LEAVE PAGE
+   ============================================================ */
+function pageLeave(){
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  let html = `<h2 class="page-title">Leave</h2><p class="page-sub">${isManager?'Review requests from your team.':'Apply for leave and track approvals.'}</p>`;
+
+  if(!isManager || true){
+    html += `<div class="section-head"><h3>${isManager?'Apply for your own leave':'Apply for leave'}</h3><button class="btn btn-primary btn-sm" onclick="openLeaveForm()">+ New request</button></div>`;
+  }
+
+  const mine = DB.leaves.filter(l=>l.empId===CURRENT.id).sort((a,b)=>b.appliedOn.localeCompare(a.appliedOn));
+  html += `<div class="card table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>`;
+  if(!mine.length) html += `<tr><td colspan="5" class="empty">No leave requests yet.</td></tr>`;
+  mine.forEach(l=> html += `<tr><td>${fmtDate(l.from)}</td><td>${fmtDate(l.to)}</td><td>${escapeHtml(l.reason)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td><td><button class="link-btn" onclick="openLeaveForm('${l.id}')">Edit</button></td></tr>`);
+  html += `</tbody></table></div>`;
+
+  if(isManager){
+    const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id);
+    const pending = DB.leaves.filter(l=>l.status==='PENDING' && scopeIds.includes(l.empId));
+    const history = DB.leaves.filter(l=>l.status!=='PENDING' && scopeIds.includes(l.empId)).sort((a,b)=>b.appliedOn.localeCompare(a.appliedOn)).slice(0,10);
+    html += `<div class="section-head"><h3>Pending approval (${pending.length})</h3></div>`;
+    if(!pending.length){ html += `<div class="empty"><div class="big">✓</div><div class="t">Nothing pending</div><div class="s">Your team's leave requests will show up here.</div></div>`; }
+    pending.forEach(l => {
+      html += `<div class="card" style="margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <div><div style="font-weight:600;">${escapeHtml(empName(l.empId))} <span class="note">· ${teamName(DB.employees.find(e=>e.id===l.empId)?.team)}</span></div>
+        <div style="font-size:13px; color:var(--muted); margin-top:2px;">${fmtDate(l.from)} → ${fmtDate(l.to)} · ${escapeHtml(l.reason)}</div></div>
+        <div class="row-actions"><button class="btn btn-sm btn-ghost" onclick="openLeaveForm('${l.id}')">Edit</button><button class="btn btn-sm btn-success" onclick="decideLeave('${l.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideLeave('${l.id}','REJECTED')">Reject</button></div>
+      </div>`;
+    });
+    if(history.length){
+      html += `<div class="section-head"><h3>Recent decisions</h3></div><div class="card table-wrap"><table><thead><tr><th>Name</th><th>Dates</th><th>Status</th><th></th></tr></thead><tbody>`;
+      history.forEach(l=> html += `<tr><td>${escapeHtml(empName(l.empId))}</td><td>${fmtDate(l.from)} → ${fmtDate(l.to)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td><td><button class="link-btn" onclick="openLeaveForm('${l.id}')">Edit</button></td></tr>`);
+      html += `</tbody></table></div>`;
+    }
+  }
+  $('#mainContent').innerHTML = html;
+}
+function openLeaveForm(editId){
+  const existing = editId ? DB.leaves.find(l=>l.id===editId) : null;
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>${existing?'Edit leave request':'Apply for leave'}</h3>
+    ${!existing?'<p class="note" style="margin-bottom:16px;">Your team lead will be notified for approval.</p>':''}
+    <div class="field"><label>From</label><input type="date" id="lvFrom" value="${existing?existing.from:''}" ${existing?'':`min="${todayStr()}"`} required></div>
+    <div class="field"><label>To</label><input type="date" id="lvTo" value="${existing?existing.to:''}" ${existing?'':`min="${todayStr()}"`} required></div>
+    <div class="field"><label>Reason</label><textarea id="lvReason" rows="3" placeholder="e.g. Family function" required>${existing?escapeHtml(existing.reason):''}</textarea></div>
+    ${existing && isManager ? `<div class="field"><label>Status</label><select id="lvStatus">
+      <option value="PENDING" ${existing.status==='PENDING'?'selected':''}>Pending</option>
+      <option value="APPROVED" ${existing.status==='APPROVED'?'selected':''}>Approved</option>
+      <option value="REJECTED" ${existing.status==='REJECTED'?'selected':''}>Rejected</option>
+    </select></div>` : ''}
+    <input type="hidden" id="lvEditId" value="${existing?existing.id:''}">
+    <button class="btn btn-primary" style="width:100%;" onclick="submitLeave()">${existing?'Save changes':'Submit request'}</button>
+  `);
+}
+function submitLeave(){
+  const editId = $('#lvEditId').value;
+  const from = $('#lvFrom').value, to = $('#lvTo').value, reason = $('#lvReason').value.trim();
+  if(!from || !to || !reason){ toast('Fill in all fields'); return; }
+  if(to < from){ toast('End date must be after start date'); return; }
+  if(editId){
+    const l = DB.leaves.find(x=>x.id===editId);
+    if(!l){ toast('Request not found'); return; }
+    l.from = from; l.to = to; l.reason = reason;
+    const statusEl = $('#lvStatus');
+    if(statusEl) l.status = statusEl.value;
+    closeModal(); toast('Leave request updated'); renderPage();
+    saveDB('leaves');
+    return;
+  }
+  DB.leaves.push({ id: uid('lv'), empId: CURRENT.id, from, to, reason, status:'PENDING', appliedOn: new Date().toISOString() });
+  closeModal(); toast('Leave request submitted'); renderPage();
+  saveDB('leaves');
+}
+function decideLeave(id, status){
+  const l = DB.leaves.find(x=>x.id===id); if(!l) return;
+  l.status = status; l.reviewedBy = CURRENT.id;
+  toast(`Leave ${status.toLowerCase()}`); renderPage();
+  saveDB('leaves');
+}
+
+/* ============================================================
+   ADVANCE SALARY PAGE
+   ============================================================ */
+function pageAdvance(){
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  let html = `<h2 class="page-title">Salary advance</h2><p class="page-sub">Request or review advance salary payouts.</p>
+  <div class="section-head"><h3>Your requests</h3><button class="btn btn-primary btn-sm" onclick="openAdvanceForm()">+ New request</button></div>`;
+
+  const mine = DB.advances.filter(a=>a.empId===CURRENT.id).sort((a,b)=>b.appliedOn.localeCompare(a.appliedOn));
+  html += `<div class="card table-wrap"><table><thead><tr><th>Amount</th><th>Reason</th><th>Applied</th><th>Status</th><th></th></tr></thead><tbody>`;
+  if(!mine.length) html += `<tr><td colspan="5" class="empty">No advance requests yet.</td></tr>`;
+  mine.forEach(a=> html += `<tr><td>₹${a.amount.toLocaleString('en-IN')}</td><td>${escapeHtml(a.reason)}</td><td>${fmtDate(a.appliedOn.slice(0,10))}</td><td><span class="pill pill-${a.status.toLowerCase()}">${a.status}</span></td><td><button class="link-btn" onclick="openAdvanceForm('${a.id}')">Edit</button></td></tr>`);
+  html += `</tbody></table></div>`;
+
+  if(isManager){
+    const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id);
+    const pending = DB.advances.filter(a=>a.status==='PENDING' && scopeIds.includes(a.empId));
+    html += `<div class="section-head"><h3>Pending approval (${pending.length})</h3></div>`;
+    if(!pending.length){ html += `<div class="empty"><div class="big">✓</div><div class="t">Nothing pending</div><div class="s">Advance requests from your team appear here.</div></div>`; }
+    pending.forEach(a => {
+      html += `<div class="card" style="margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+        <div><div style="font-weight:600;">${escapeHtml(empName(a.empId))} · ₹${a.amount.toLocaleString('en-IN')}</div>
+        <div style="font-size:13px; color:var(--muted); margin-top:2px;">${escapeHtml(a.reason)}</div></div>
+        <div class="row-actions"><button class="btn btn-sm btn-ghost" onclick="openAdvanceForm('${a.id}')">Edit</button><button class="btn btn-sm btn-success" onclick="decideAdvance('${a.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideAdvance('${a.id}','REJECTED')">Reject</button></div>
+      </div>`;
+    });
+  }
+  html += `<p class="note" style="margin-top:18px;">Note: this logs requests and approvals for record-keeping — actual disbursement still happens through your usual payroll/bank process.</p>`;
+  $('#mainContent').innerHTML = html;
+}
+function openAdvanceForm(editId){
+  const existing = editId ? DB.advances.find(a=>a.id===editId) : null;
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>${existing?'Edit advance request':'Request salary advance'}</h3>
+    <div class="field"><label>Amount (₹)</label><input type="number" id="advAmt" min="1" value="${existing?existing.amount:''}" placeholder="e.g. 5000" required></div>
+    <div class="field"><label>Reason</label><textarea id="advReason" rows="3" placeholder="e.g. Medical expense" required>${existing?escapeHtml(existing.reason):''}</textarea></div>
+    ${existing && isManager ? `<div class="field"><label>Status</label><select id="advStatus">
+      <option value="PENDING" ${existing.status==='PENDING'?'selected':''}>Pending</option>
+      <option value="APPROVED" ${existing.status==='APPROVED'?'selected':''}>Approved</option>
+      <option value="REJECTED" ${existing.status==='REJECTED'?'selected':''}>Rejected</option>
+    </select></div>` : ''}
+    <input type="hidden" id="advEditId" value="${existing?existing.id:''}">
+    <button class="btn btn-primary" style="width:100%;" onclick="submitAdvance()">${existing?'Save changes':'Submit request'}</button>
+  `);
+}
+function submitAdvance(){
+  const editId = $('#advEditId').value;
+  const amount = parseFloat($('#advAmt').value), reason = $('#advReason').value.trim();
+  if(!amount || amount<=0 || !reason){ toast('Fill in all fields'); return; }
+  if(editId){
+    const a = DB.advances.find(x=>x.id===editId);
+    if(!a){ toast('Request not found'); return; }
+    a.amount = amount; a.reason = reason;
+    const statusEl = $('#advStatus');
+    if(statusEl) a.status = statusEl.value;
+    closeModal(); toast('Advance request updated'); renderPage();
+    saveDB('advances');
+    return;
+  }
+  DB.advances.push({ id: uid('adv'), empId: CURRENT.id, amount, reason, status:'PENDING', appliedOn: new Date().toISOString() });
+  closeModal(); toast('Advance request submitted'); renderPage();
+  saveDB('advances');
+}
+function decideAdvance(id, status){
+  const a = DB.advances.find(x=>x.id===id); if(!a) return;
+  a.status = status; a.reviewedBy = CURRENT.id;
+  toast(`Advance ${status.toLowerCase()}`); renderPage();
+  saveDB('advances');
+}
+
+/* ============================================================
+   TASKS PAGE
+   ============================================================ */
+function pageTasks(){
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD';
+  let html = `<h2 class="page-title">Tasks</h2><p class="page-sub">${isManager?'Assign and track work across your team.':'Your assigned work.'}</p>`;
+  if(isManager) html += `<div class="section-head"><h3>Board</h3><button class="btn btn-primary btn-sm" onclick="openTaskForm()">+ New task</button></div>`;
+
+  const scopeIds = isManager ? myTeamMemberIds() : [CURRENT.id];
+  const mine = DB.tasks.filter(t=>scopeIds.includes(t.assignedTo));
+  const cols = [['TODO','To do'],['PROGRESS','In progress'],['DONE','Done']];
+  html += `<div class="grid grid-3">`;
+  cols.forEach(([key,label])=>{
+    const items = mine.filter(t=>t.status===key);
+    html += `<div class="taskcol"><h4>${label} · ${items.length}</h4>`;
+    if(!items.length) html += `<p class="note" style="padding:0 6px;">Nothing here.</p>`;
+    items.forEach(t=>{
+      html += `<div class="taskcard">
+        <div class="tt">${escapeHtml(t.title)}</div>
+        ${t.description ? `<div style="color:var(--muted); font-size:12px;">${escapeHtml(t.description)}</div>` : ''}
+        <div class="meta">
+          <span>${isManager ? escapeHtml(empName(t.assignedTo)) : (t.dueDate ? 'Due '+fmtDate(t.dueDate) : '')}</span>
+          ${isManager ? `<button class="link-btn" style="margin-right:6px;" onclick="openTaskForm('${t.id}')">Edit</button>` : ''}
+          <select onchange="moveTask('${t.id}', this.value)" style="border:1px solid var(--amber-line); border-radius:6px; font-size:11px; padding:2px 4px;">
+            <option value="TODO" ${t.status==='TODO'?'selected':''}>To do</option>
+            <option value="PROGRESS" ${t.status==='PROGRESS'?'selected':''}>In progress</option>
+            <option value="DONE" ${t.status==='DONE'?'selected':''}>Done</option>
+          </select>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+  $('#mainContent').innerHTML = html;
+}
+function openTaskForm(editId){
+  const existing = editId ? DB.tasks.find(t=>t.id===editId) : null;
+  const scopeIds = myTeamMemberIds();
+  const people = DB.employees.filter(e=>scopeIds.includes(e.id));
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>${existing?'Edit task':'New task'}</h3>
+    <div class="field"><label>Title</label><input type="text" id="tkTitle" value="${existing?escapeHtml(existing.title):''}" placeholder="e.g. Restock Discovery Set" required></div>
+    <div class="field"><label>Description (optional)</label><textarea id="tkDesc" rows="2">${existing?escapeHtml(existing.description||''):''}</textarea></div>
+    <div class="field"><label>Assign to</label><select id="tkAssignee">${people.map(p=>`<option value="${p.id}" ${existing&&existing.assignedTo===p.id?'selected':''}>${escapeHtml(p.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Due date (optional)</label><input type="date" id="tkDue" value="${existing&&existing.dueDate?existing.dueDate:''}"></div>
+    <input type="hidden" id="tkEditId" value="${existing?existing.id:''}">
+    <button class="btn btn-primary" style="width:100%;" onclick="submitTask()">${existing?'Save changes':'Create task'}</button>
+  `);
+}
+function submitTask(){
+  const editId = $('#tkEditId').value;
+  const title = $('#tkTitle').value.trim(), desc = $('#tkDesc').value.trim(), assignee = $('#tkAssignee').value, due = $('#tkDue').value;
+  if(!title || !assignee){ toast('Add a title and assignee'); return; }
+  const assigneeEmp = DB.employees.find(e=>e.id===assignee);
+  if(editId){
+    const t = DB.tasks.find(x=>x.id===editId);
+    if(!t){ toast('Task not found'); return; }
+    t.title = title; t.description = desc; t.assignedTo = assignee; t.team = assigneeEmp?.team||null; t.dueDate = due||null;
+    closeModal(); toast('Task updated'); renderPage();
+    saveDB('tasks');
+    return;
+  }
+  DB.tasks.push({ id: uid('tk'), title, description:desc, team: assigneeEmp?.team||null, assignedTo:assignee, status:'TODO', dueDate:due||null, createdBy:CURRENT.id, createdOn:new Date().toISOString() });
+  closeModal(); toast('Task created'); renderPage();
+  saveDB('tasks');
+}
+function moveTask(id, status){
+  const t = DB.tasks.find(x=>x.id===id); if(!t) return;
+  t.status = status; toast('Task updated'); renderPage();
+  saveDB('tasks');
+}
+
+/* ============================================================
+   TEAM PAGE (lead + founder)
+   ============================================================ */
+function pageTeam(){
+  let html = `<h2 class="page-title">Team</h2><p class="page-sub">People you manage.</p>`;
+  const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id);
+  const people = DB.employees.filter(e=>scopeIds.includes(e.id));
+  html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Team</th><th>Role</th><th>Today</th></tr></thead><tbody>`;
+  if(!people.length) html += `<tr><td colspan="4" class="empty">No team members assigned yet.</td></tr>`;
+  people.forEach(e=>{
+    const rec = DB.attendance[attKey(e.id, todayStr())];
+    html += `<tr><td>${escapeHtml(e.name)}</td><td>${teamName(e.team)}</td><td>${e.role.replace('_',' ')}</td>
+      <td><span class="pill ${rec?.checkIn?'pill-present':'pill-absent'}">${rec?.checkIn?'Present':'Absent'}</span></td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  $('#mainContent').innerHTML = html;
+}
+
+/* ============================================================
+   REPORTS PAGE (lead + founder) — monthly attendance register
+   ============================================================ */
+function daysInMonth(ym){ // ym = 'YYYY-MM'
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m, 0).getDate();
+}
+function pageReports(){
+  const ym = window.__reportMonth || todayStr().slice(0,7);
+  const totalDays = daysInMonth(ym);
+  const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
+  const teamFilter = window.__reportTeam || '';
+  let people = DB.employees.filter(e=>scopeIds.includes(e.id));
+  if(teamFilter) people = people.filter(e=>e.team===teamFilter);
+
+  const [monthLabel] = [new Date(ym+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long', year:'numeric'})];
+
+  let html = `<h2 class="page-title">Reports</h2><p class="page-sub">Monthly attendance register — every employee, every day.</p>`;
+  html += `<div class="filter-row">
+    <input type="month" value="${ym}" onchange="window.__reportMonth=this.value; renderPage();">
+    ${CURRENT.role==='FOUNDER' ? `<select onchange="window.__reportTeam=this.value; renderPage();">
+      <option value="">All teams</option>
+      ${DB.teams.map(t=>`<option value="${t.id}" ${teamFilter===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+    </select>` : ''}
+    <button class="btn btn-ghost btn-sm" onclick="downloadAttendanceCsv('${ym}')">⬇ Attendance CSV</button>
+    <button class="btn btn-ghost btn-sm" onclick="downloadLeaveCsv('${ym}')">⬇ Leave CSV</button>
+    <button class="btn btn-ghost btn-sm" onclick="downloadAdvanceCsv('${ym}')">⬇ Advance CSV</button>
+  </div>`;
+
+  // ---- Attendance grid ----
+  html += `<div class="section-head"><h3>${monthLabel} · Attendance</h3></div>`;
+  if(!people.length){
+    html += `<div class="empty"><div class="big">▤</div><div class="t">No one to show</div><div class="s">Add people to your team to see their attendance here.</div></div>`;
+  } else {
+    html += `<div class="card table-wrap"><table><thead><tr><th style="position:sticky;left:0;background:var(--panel);">Name</th>`;
+    for(let d=1; d<=totalDays; d++) html += `<th style="text-align:center; min-width:26px;">${d}</th>`;
+    html += `<th>Present</th><th>Leave</th><th>Hours</th></tr></thead><tbody>`;
+    people.forEach(e=>{
+      html += `<tr><td style="position:sticky;left:0;background:var(--panel); font-weight:600;">${escapeHtml(e.name)}</td>`;
+      let present=0, leaveDays=0, hours=0;
+      for(let d=1; d<=totalDays; d++){
+        const date = ym+'-'+String(d).padStart(2,'0');
+        const cell = dayCell(e.id, date);
+        if(cell.status==='P'){ present++; hours += cell.hours||0; }
+        if(cell.status==='L') leaveDays++;
+        html += `<td style="text-align:center;"><span class="daydot ${cell.cls}" title="${cell.title}">${cell.label}</span></td>`;
+      }
+      html += `<td class="mono">${present}</td><td class="mono">${leaveDays}</td><td class="mono">${hours.toFixed(1)}h</td></tr>`;
+    });
+    html += `</tbody></table></div>
+    <p class="note" style="margin-top:10px;">P = present · A = absent · L = on approved leave · blank = future date. Scroll sideways to see the full month.</p>`;
+  }
+
+  // ---- Leave register for the month ----
+  const monthLeaves = DB.leaves.filter(l => scopeIds.includes(l.empId) && l.from.slice(0,7)<=ym && l.to.slice(0,7)>=ym);
+  html += `<div class="section-head"><h3>${monthLabel} · Leave register</h3></div>`;
+  html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>From</th><th>To</th><th>Reason</th><th>Status</th></tr></thead><tbody>`;
+  if(!monthLeaves.length) html += `<tr><td colspan="5" class="empty">No leave records this month.</td></tr>`;
+  monthLeaves.forEach(l=> html += `<tr><td>${escapeHtml(empName(l.empId))}</td><td>${fmtDate(l.from)}</td><td>${fmtDate(l.to)}</td><td>${escapeHtml(l.reason)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td></tr>`);
+  html += `</tbody></table></div>`;
+
+  // ---- Advance register for the month ----
+  const monthAdvances = DB.advances.filter(a => scopeIds.includes(a.empId) && a.appliedOn.slice(0,7)===ym);
+  html += `<div class="section-head"><h3>${monthLabel} · Advance register</h3></div>`;
+  html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Amount</th><th>Reason</th><th>Applied</th><th>Status</th></tr></thead><tbody>`;
+  if(!monthAdvances.length) html += `<tr><td colspan="5" class="empty">No advance requests this month.</td></tr>`;
+  monthAdvances.forEach(a=> html += `<tr><td>${escapeHtml(empName(a.empId))}</td><td>₹${a.amount.toLocaleString('en-IN')}</td><td>${escapeHtml(a.reason)}</td><td>${fmtDate(a.appliedOn.slice(0,10))}</td><td><span class="pill pill-${a.status.toLowerCase()}">${a.status}</span></td></tr>`);
+  html += `</tbody></table></div>`;
+
+  $('#mainContent').innerHTML = html;
+}
+function dayCell(empId, date){
+  const rec = DB.attendance[attKey(empId, date)];
+  if(rec && rec.checkIn){
+    const h = hoursBetween(rec.checkIn, rec.checkOut);
+    return { status:'P', cls:'dot-present', label:'P', hours:h||0, title:`${fmtTime(rec.checkIn)}${rec.checkOut?' – '+fmtTime(rec.checkOut):''}` };
+  }
+  const onLeave = DB.leaves.some(l => l.empId===empId && l.status==='APPROVED' && l.from<=date && l.to>=date);
+  if(onLeave) return { status:'L', cls:'dot-leave', label:'L', title:'Approved leave' };
+  if(date > todayStr()) return { status:'', cls:'dot-future', label:'', title:'' };
+  return { status:'A', cls:'dot-absent', label:'A', title:'Absent' };
+}
+function csvEscape(v){
+  const s = String(v ?? '');
+  return /[",\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+}
+function downloadCsv(filename, rows){
+  const csv = rows.map(r => r.map(csvEscape).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function downloadAttendanceCsv(ym){
+  const totalDays = daysInMonth(ym);
+  const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
+  const teamFilter = window.__reportTeam || '';
+  let people = DB.employees.filter(e=>scopeIds.includes(e.id));
+  if(teamFilter) people = people.filter(e=>e.team===teamFilter);
+  const rows = [['Employee','Employee ID','Team','Date','Status','Check-in','Check-out','Hours']];
+  people.forEach(e=>{
+    for(let d=1; d<=totalDays; d++){
+      const date = ym+'-'+String(d).padStart(2,'0');
+      const rec = DB.attendance[attKey(e.id, date)];
+      const cell = dayCell(e.id, date);
+      if(!cell.status) continue; // skip future dates
+      rows.push([e.name, e.id, teamName(e.team), date, cell.status==='P'?'Present':cell.status==='L'?'Leave':'Absent',
+        rec?.checkIn?fmtTime(rec.checkIn):'', rec?.checkOut?fmtTime(rec.checkOut):'', cell.hours?cell.hours.toFixed(2):'']);
+    }
+  });
+  downloadCsv(`bombay-musk-attendance-${ym}.csv`, rows);
+  toast('Attendance CSV downloaded');
+}
+function downloadLeaveCsv(ym){
+  const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
+  const monthLeaves = DB.leaves.filter(l => scopeIds.includes(l.empId) && l.from.slice(0,7)<=ym && l.to.slice(0,7)>=ym);
+  const rows = [['Employee','Employee ID','From','To','Reason','Status','Applied On']];
+  monthLeaves.forEach(l=> rows.push([empName(l.empId), l.empId, l.from, l.to, l.reason, l.status, l.appliedOn.slice(0,10)]));
+  downloadCsv(`bombay-musk-leaves-${ym}.csv`, rows);
+  toast('Leave CSV downloaded');
+}
+function downloadAdvanceCsv(ym){
+  const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
+  const monthAdvances = DB.advances.filter(a => scopeIds.includes(a.empId) && a.appliedOn.slice(0,7)===ym);
+  const rows = [['Employee','Employee ID','Amount','Reason','Status','Applied On']];
+  monthAdvances.forEach(a=> rows.push([empName(a.empId), a.empId, a.amount, a.reason, a.status, a.appliedOn.slice(0,10)]));
+  downloadCsv(`bombay-musk-advances-${ym}.csv`, rows);
+  toast('Advance CSV downloaded');
+}
+
+/* ============================================================
+   SALARY CALCULATOR (founder only)
+   ============================================================ */
+function isSunday(date){ return new Date(date+'T00:00:00').getDay() === 0; }
+function calcSalary(emp, ym){
+  const totalDays = daysInMonth(ym);
+  const currentYM = todayStr().slice(0,7);
+  let lastDay;
+  if(ym < currentYM) lastDay = totalDays;
+  else if(ym > currentYM) lastDay = 0;
+  else lastDay = Number(todayStr().slice(8,10));
+
+  let present=0, paidLeave=0, sundaysPaid=0, absent=0;
+  for(let d=1; d<=lastDay; d++){
+    const date = ym+'-'+String(d).padStart(2,'0');
+    const cell = dayCell(emp.id, date);
+    if(cell.status==='P') present++;
+    else if(cell.status==='L') paidLeave++;
+    else if(cell.status==='A'){
+      if(isSunday(date)) sundaysPaid++;
+      else absent++;
+    }
+  }
+  const isDaily = emp.salaryType === 'DAILY';
+  const baseSalary = emp.baseSalary || 0;
+  const dailyRate = emp.dailyRate || 0;
+  const perDayRate = isDaily ? dailyRate : (baseSalary / totalDays);
+  const payableDays = present + paidLeave + sundaysPaid;
+  const grossEarned = perDayRate * payableDays;
+  const advances = DB.advances
+    .filter(a => a.empId===emp.id && a.status==='APPROVED' && a.appliedOn.slice(0,7)===ym)
+    .reduce((sum,a)=>sum+a.amount, 0);
+  const netPayable = grossEarned - advances;
+  return { present, paidLeave, sundaysPaid, absent, perDayRate, payableDays, grossEarned, advances, netPayable, baseSalary, dailyRate, isDaily };
+}
+function pageSalary(){
+  const ym = window.__salaryMonth || todayStr().slice(0,7);
+  const monthLabel = new Date(ym+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+  const teamFilter = window.__salaryTeam || '';
+  let people = DB.employees.slice();
+  if(teamFilter) people = people.filter(e=>e.team===teamFilter);
+
+  let html = `<h2 class="page-title">Salary calculator</h2><p class="page-sub">${monthLabel} — based on attendance, approved leave, and advances.</p>`;
+  html += `<div class="filter-row">
+    <input type="month" value="${ym}" onchange="window.__salaryMonth=this.value; renderPage();">
+    <select onchange="window.__salaryTeam=this.value; renderPage();">
+      <option value="">All teams</option>
+      ${DB.teams.map(t=>`<option value="${t.id}" ${teamFilter===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="downloadSalaryCsv('${ym}')">⬇ Salary CSV</button>
+  </div>`;
+
+  const withSalary = people.filter(e=>e.baseSalary || e.dailyRate);
+  const withoutSalary = people.filter(e=>!e.baseSalary && !e.dailyRate);
+
+  if(!withSalary.length){
+    html += `<div class="empty"><div class="big">₹</div><div class="t">No salaries set yet</div><div class="s">Add a monthly salary or per-day rate to each person in People to see calculations here.</div></div>`;
+  } else {
+    let totalPayable = 0;
+    html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Rate</th><th>Present</th><th>Leave</th><th>Sundays</th><th>Absent</th><th>Gross</th><th>Advances</th><th>Net payable</th></tr></thead><tbody>`;
+    withSalary.forEach(e=>{
+      const r = calcSalary(e, ym);
+      totalPayable += r.netPayable;
+      const rateLabel = r.isDaily ? `₹${r.dailyRate.toLocaleString('en-IN')}/day` : `₹${r.baseSalary.toLocaleString('en-IN')}/mo`;
+      html += `<tr><td style="font-weight:600;">${escapeHtml(e.name)}</td><td class="mono">${rateLabel}</td>
+        <td class="mono">${r.present}</td><td class="mono">${r.paidLeave}</td><td class="mono">${r.sundaysPaid}</td>
+        <td class="mono" style="color:var(--danger);">${r.absent}</td>
+        <td class="mono">₹${r.grossEarned.toFixed(0)}</td>
+        <td class="mono" style="color:var(--danger);">${r.advances?'−₹'+r.advances.toLocaleString('en-IN'):'—'}</td>
+        <td class="mono" style="font-weight:700; color:var(--musk);">₹${r.netPayable.toFixed(0)}</td></tr>`;
+    });
+    html += `</tbody><tfoot><tr style="border-top:2px solid var(--amber-line);"><td colspan="8" style="font-weight:700;">Total payable this month</td><td class="mono" style="font-weight:700; font-size:15px;">₹${totalPayable.toFixed(0)}</td></tr></tfoot></table></div>`;
+  }
+
+  if(withoutSalary.length){
+    html += `<div class="section-head"><h3>No salary set (${withoutSalary.length})</h3></div>
+    <div class="card"><p class="note">${withoutSalary.map(e=>escapeHtml(e.name)).join(', ')} — edit them in People to add a monthly salary or per-day rate.</p></div>`;
+  }
+
+  html += `<p class="note" style="margin-top:18px;">This is a working estimate for internal reference: pay rate (monthly ÷ days in month, or a set per-day rate) × days paid (present + approved leave + Sundays), minus advances approved this month. It doesn't account for PF, ESI, professional tax, or TDS — run final numbers through your accountant before disbursing.</p>`;
+  $('#mainContent').innerHTML = html;
+}
+function downloadSalaryCsv(ym){
+  const teamFilter = window.__salaryTeam || '';
+  let people = DB.employees.filter(e=>e.baseSalary || e.dailyRate);
+  if(teamFilter) people = people.filter(e=>e.team===teamFilter);
+  const rows = [['Employee','Employee ID','Team','Salary Type','Monthly Salary','Daily Rate','Present','Paid Leave','Sundays Paid','Absent','Effective Per-day Rate','Gross Earned','Advances Deducted','Net Payable']];
+  people.forEach(e=>{
+    const r = calcSalary(e, ym);
+    rows.push([e.name, e.id, teamName(e.team), r.isDaily?'Per-day':'Monthly', r.baseSalary||'', r.dailyRate||'', r.present, r.paidLeave, r.sundaysPaid, r.absent, r.perDayRate.toFixed(2), r.grossEarned.toFixed(0), r.advances, r.netPayable.toFixed(0)]);
+  });
+  downloadCsv(`bombay-musk-salary-${ym}.csv`, rows);
+  toast('Salary CSV downloaded');
+}
+
+/* ============================================================
+   PEOPLE / ADMIN PAGE (founder only)
+   ============================================================ */
+function pagePeople(){
+  let html = `<h2 class="page-title">People & teams</h2><p class="page-sub">Add employees, team leads, and teams.</p>`;
+
+  html += `<div class="section-head"><h3>Teams (${DB.teams.length})</h3><button class="btn btn-primary btn-sm" onclick="openTeamForm()">+ New team</button></div>`;
+  html += `<div class="card table-wrap"><table><thead><tr><th>Team</th><th>Lead</th><th>Members</th><th></th></tr></thead><tbody>`;
+  if(!DB.teams.length) html += `<tr><td colspan="4" class="empty">No teams yet — create one to get started.</td></tr>`;
+  DB.teams.forEach(t=>{
+    const memberCount = DB.employees.filter(e=>e.team===t.id).length;
+    html += `<tr><td>${escapeHtml(t.name)}</td><td>${t.leadId?escapeHtml(empName(t.leadId)):'— unassigned —'}</td><td>${memberCount}</td>
+      <td><button class="link-btn" onclick="openTeamForm('${t.id}')">Edit</button></td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+
+  html += `<div class="section-head"><h3>Employees (${DB.employees.length})</h3><button class="btn btn-primary btn-sm" onclick="openEmployeeForm()">+ Add person</button></div>`;
+  html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Team</th><th></th></tr></thead><tbody>`;
+  DB.employees.forEach(e=>{
+    html += `<tr><td>${escapeHtml(e.name)}</td><td class="mono">${e.id}</td><td>${e.role.replace('_',' ')}</td><td>${teamName(e.team)}</td>
+      <td><button class="link-btn" onclick="openEmployeeForm('${e.id}')">Edit</button> ${e.id!=='admin' ? `<button class="link-btn" onclick="removeEmployee('${e.id}')">Remove</button>` : ''}</td></tr>`;
+  });
+  html += `</tbody></table></div>
+  <p class="note" style="margin-top:16px;">PINs are set when you add someone and can be shared with them directly so they can sign in.</p>`;
+  $('#mainContent').innerHTML = html;
+}
+function openTeamForm(editId){
+  const existing = editId ? DB.teams.find(t=>t.id===editId) : null;
+  const leadOptions = DB.employees.filter(e=>e.role==='TEAM_LEAD' || e.role==='FOUNDER');
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>${existing ? 'Edit team' : 'New team'}</h3>
+    <div class="field"><label>Team name</label><input type="text" id="teamName" value="${existing?escapeHtml(existing.name):''}" placeholder="e.g. Performance Marketing" required></div>
+    <div class="field"><label>Team lead</label><select id="teamLead">
+      <option value="">— unassigned —</option>
+      ${leadOptions.map(e=>`<option value="${e.id}" ${existing&&existing.leadId===e.id?'selected':''}>${escapeHtml(e.name)}</option>`).join('')}
+    </select></div>
+    <input type="hidden" id="teamEditId" value="${existing?existing.id:''}">
+    <button class="btn btn-primary" style="width:100%;" onclick="submitTeam()">${existing?'Save changes':'Create team'}</button>
+  `);
+}
+function submitTeam(){
+  const editId = $('#teamEditId').value;
+  const name = $('#teamName').value.trim();
+  const leadId = $('#teamLead').value || null;
+  if(!name){ toast('Enter a team name'); return; }
+  if(editId){
+    const t = DB.teams.find(x=>x.id===editId);
+    if(!t){ toast('Team not found'); return; }
+    t.name = name; t.leadId = leadId;
+    let empChanged = false;
+    if(leadId){
+      const emp = DB.employees.find(x=>x.id===leadId);
+      if(emp && emp.role!=='FOUNDER' && (emp.role!=='TEAM_LEAD' || emp.team!==editId)){
+        emp.role = 'TEAM_LEAD'; emp.team = editId; empChanged = true;
+      }
+    }
+    closeModal(); toast('Team updated'); renderPage();
+    saveDB('teams');
+    if(empChanged) saveDB('employees');
+    return;
+  }
+  DB.teams.push({ id: uid('team'), name, leadId });
+  closeModal(); toast('Team created'); renderPage();
+  saveDB('teams');
+}
+function openEmployeeForm(editId){
+  const existing = editId ? DB.employees.find(e=>e.id===editId) : null;
+  openModal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h3>${existing ? 'Edit person' : 'Add a person'}</h3>
+    <div class="field"><label>Full name</label><input type="text" id="epName" value="${existing?escapeHtml(existing.name):''}" required></div>
+    <div class="field"><label>Employee ID ${existing?'(cannot be changed — used to log in)':'(used to log in)'}</label><input type="text" id="epId" value="${existing?existing.id:''}" placeholder="e.g. BM-014" ${existing?'disabled':''} required></div>
+    <div class="field"><label>PIN</label><input type="text" id="epPin" value="${existing?existing.pin:''}" placeholder="4–6 digits" required></div>
+    <div class="field"><label>Role</label><select id="epRole">
+      <option value="EMPLOYEE" ${existing&&existing.role==='EMPLOYEE'?'selected':''}>Employee</option>
+      <option value="TEAM_LEAD" ${existing&&existing.role==='TEAM_LEAD'?'selected':''}>Team lead</option>
+      ${existing&&existing.role==='FOUNDER' ? '<option value="FOUNDER" selected>Founder</option>' : ''}
+    </select></div>
+    <div class="field"><label>Team</label><select id="epTeam"><option value="">— none —</option>${DB.teams.map(t=>`<option value="${t.id}" ${existing&&existing.team===t.id?'selected':''}>${escapeHtml(t.name)}</option>`).join('')}</select></div>
+    <div class="field"><label>Salary type</label><select id="epSalaryType" onchange="toggleSalaryFields()">
+      <option value="MONTHLY" ${!existing||existing.salaryType!=='DAILY'?'selected':''}>Monthly salary</option>
+      <option value="DAILY" ${existing&&existing.salaryType==='DAILY'?'selected':''}>Per-day rate</option>
+    </select></div>
+    <div class="field" id="epMonthlyField"><label>Monthly salary (₹, optional)</label><input type="number" id="epSalary" min="0" value="${existing&&existing.baseSalary?existing.baseSalary:''}" placeholder="e.g. 25000"></div>
+    <div class="field" id="epDailyField"><label>Per-day rate (₹, optional)</label><input type="number" id="epDailyRate" min="0" value="${existing&&existing.dailyRate?existing.dailyRate:''}" placeholder="e.g. 900"></div>
+    <input type="hidden" id="epEditId" value="${existing?existing.id:''}">
+    <button class="btn btn-primary" style="width:100%;" onclick="submitEmployee()">${existing?'Save changes':'Add person'}</button>
+  `);
+  toggleSalaryFields();
+}
+function toggleSalaryFields(){
+  const type = $('#epSalaryType').value;
+  $('#epMonthlyField').style.display = type==='MONTHLY' ? 'block' : 'none';
+  $('#epDailyField').style.display = type==='DAILY' ? 'block' : 'none';
+}
+function submitEmployee(){
+  const editId = $('#epEditId').value;
+  const name = $('#epName').value.trim(), pin = $('#epPin').value.trim();
+  const role = $('#epRole').value, team = $('#epTeam').value || null;
+  const salaryType = $('#epSalaryType').value;
+  const salaryRaw = $('#epSalary').value;
+  const dailyRaw = $('#epDailyRate').value;
+  const baseSalary = salaryRaw ? parseFloat(salaryRaw) : null;
+  const dailyRate = dailyRaw ? parseFloat(dailyRaw) : null;
+  if(!name || !pin){ toast('Fill in all required fields'); return; }
+
+  if(editId){
+    const emp = DB.employees.find(e=>e.id===editId);
+    if(!emp){ toast('Person not found'); return; }
+    emp.name = name; emp.pin = pin; emp.role = role; emp.team = team;
+    emp.salaryType = salaryType; emp.baseSalary = baseSalary; emp.dailyRate = dailyRate;
+    let teamsChanged = false;
+    DB.teams.forEach(t=>{
+      if(t.leadId===editId && (role!=='TEAM_LEAD' || t.id!==team)){ t.leadId = null; teamsChanged = true; }
+    });
+    if(role==='TEAM_LEAD' && team){
+      const t = DB.teams.find(x=>x.id===team);
+      if(t && t.leadId!==editId){ t.leadId = editId; teamsChanged = true; }
+    }
+    closeModal(); toast('Updated'); renderPage();
+    saveDB('employees');
+    if(teamsChanged) saveDB('teams');
+    return;
+  }
+
+  const id = $('#epId').value.trim();
+  if(!id){ toast('Enter an employee ID'); return; }
+  if(DB.employees.some(e=>e.id.toLowerCase()===id.toLowerCase())){ toast('That Employee ID is already in use'); return; }
+  DB.employees.push({ id, name, pin, role, team, salaryType, baseSalary, dailyRate, joinDate: todayStr() });
+  let teamChanged = false;
+  if(role === 'TEAM_LEAD' && team){
+    const t = DB.teams.find(x=>x.id===team); if(t){ t.leadId = id; teamChanged = true; }
+  }
+  closeModal(); toast(`${name} added`); renderPage();
+  saveDB('employees');
+  if(teamChanged) saveDB('teams');
+}
+function removeEmployee(id){
+  DB.employees = DB.employees.filter(e=>e.id!==id);
+  DB.teams.forEach(t=>{ if(t.leadId===id) t.leadId=null; });
+  toast('Removed'); renderPage();
+  saveDB('employees'); saveDB('teams');
+}
+
+/* ---------------- boot ---------------- */
+(async function init(){
+  $('#loginLogo').src = LOGO_FULL;
+  $('#headerLogo').src = LOGO_MONO;
+  $('#appWatermark').style.backgroundImage = `url('${LOGO_MONO}')`;
+
+  // wait for the Firebase module script to define window.storage (script load order isn't guaranteed)
+  let waited = 0;
+  while(!window.__storageReady && waited < 4000){ await new Promise(r=>setTimeout(r,20)); waited += 20; }
+
+  if(!window.storage){
+    $('#loginHint').style.display = 'block';
+    $('#loginHint').innerHTML = '<b>Setup needed:</b> this copy isn\'t connected to a database yet. Ask whoever built this to finish the Firebase setup.';
+    $('#loginError').textContent = '';
+    return;
+  }
+  await loadDB();
+})();
+</script>
+</body>
+</html>
