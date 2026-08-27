@@ -40,36 +40,60 @@
   #loginScreen{
     min-height:100vh; display:flex; align-items:center; justify-content:center;
     background:
-      radial-gradient(circle at 15% 15%, rgba(0,0,0,0.05), transparent 45%),
-      radial-gradient(circle at 85% 85%, rgba(0,0,0,0.04), transparent 45%),
+      radial-gradient(circle at 15% 10%, rgba(0,0,0,0.05), transparent 45%),
+      radial-gradient(circle at 88% 90%, rgba(0,0,0,0.045), transparent 45%),
       var(--paper);
-    padding:24px;
+    padding:24px; position:relative; overflow:hidden;
+  }
+  .login-stage{ position:relative; width:100%; max-width:400px; display:flex; flex-direction:column; align-items:center; }
+  .login-rings{
+    position:absolute; top:150px; left:50%; width:540px; height:540px; transform:translate(-50%,-50%); pointer-events:none; z-index:0;
+    -webkit-mask-image: radial-gradient(circle, black 45%, transparent 78%);
+    mask-image: radial-gradient(circle, black 45%, transparent 78%);
+  }
+  .login-rings .ring{ position:absolute; border:1px solid rgba(17,17,17,0.07); border-radius:50%; animation: ringPulse 7s ease-in-out infinite; }
+  .login-rings .r1{ inset:150px; animation-delay:0s; }
+  .login-rings .r2{ inset:80px; animation-delay:1.4s; }
+  .login-rings .r3{ inset:0; animation-delay:2.8s; }
+  @keyframes ringPulse{
+    0%,100%{ transform:scale(0.97); opacity:0.35; }
+    50%{ transform:scale(1.03); opacity:0.9; }
   }
   .login-card{
-    width:100%; max-width:380px; background:var(--panel); border-radius:20px;
-    box-shadow:var(--shadow); padding:40px 32px 32px; border:1px solid var(--amber-line);
+    position:relative; z-index:1; width:100%; background:var(--panel); border-radius:22px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 24px 48px -20px rgba(0,0,0,0.22);
+    padding:44px 34px 34px; border:1px solid var(--amber-line);
+    animation: cardRise .55s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @keyframes cardRise{ from{ opacity:0; transform:translateY(16px); } to{ opacity:1; transform:translateY(0); } }
+  .login-footer{ margin-top:24px; font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase; color:var(--muted); text-align:center; position:relative; z-index:1; }
+  @media (prefers-reduced-motion: reduce){
+    .login-rings .ring{ animation:none; }
+    .login-card{ animation:none; }
   }
   .wordmark{ text-align:center; margin-bottom:6px; }
-  .seal{ display:flex; justify-content:center; margin-bottom:10px; }
-  .seal img{ width:200px; max-width:78%; height:auto; object-fit:contain; }
+  .seal{ display:flex; justify-content:center; margin-bottom:14px; }
+  .seal img{ width:200px; max-width:78%; height:auto; object-fit:contain; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.04)); }
   .wordmark .top{ font-size:28px; line-height:1; color:var(--oud-deep); }
-  .wordmark .bottom{ font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.28em; text-transform:uppercase; color:var(--muted); margin-top:6px; }
-  .tagline{ text-align:center; color:var(--muted); font-size:12.5px; margin:2px 0 28px; letter-spacing:0.02em; }
-  .field{ margin-bottom:14px; }
+  .wordmark .bottom{ font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.3em; text-transform:uppercase; color:var(--muted); margin-top:6px; }
+  .tagline{ text-align:center; color:var(--muted); font-size:12.5px; margin:4px 0 8px; letter-spacing:0.02em; }
+  .login-divider{ height:1px; background:linear-gradient(to right, transparent, var(--amber-line), transparent); margin:24px 0 22px; }
+  .field{ margin-bottom:16px; }
   .field label{ display:block; font-size:11.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--muted); margin-bottom:6px; }
   .field input, .field select, .field textarea{
-    width:100%; padding:11px 13px; border-radius:10px; border:1.5px solid var(--amber-line);
-    background:#fff; font-size:14.5px; color:var(--ink); outline:none; transition:border-color .15s;
+    width:100%; padding:12px 14px; border-radius:11px; border:1.5px solid var(--amber-line);
+    background:#fff; font-size:15px; color:var(--ink); outline:none; transition:border-color .18s, box-shadow .18s;
   }
-  .field input:focus, .field select:focus, .field textarea:focus{ border-color:var(--oud); }
+  .field input:focus, .field select:focus, .field textarea:focus{ border-color:var(--ink); box-shadow:0 0 0 3.5px rgba(17,17,17,0.055); }
   .btn{
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
     padding:11px 18px; border-radius:10px; border:none; font-weight:600; font-size:14px;
-    transition:transform .08s, opacity .15s; letter-spacing:0.01em;
+    transition:transform .12s, opacity .15s, box-shadow .2s, background .15s; letter-spacing:0.01em;
   }
   .btn:active{ transform:scale(0.98); }
   .btn-primary{ background:var(--oud); color:#fff; width:100%; }
-  .btn-primary:hover{ background:var(--oud-deep); }
+  .btn-primary:hover{ background:var(--oud-deep); box-shadow:0 10px 24px -8px rgba(0,0,0,0.35); transform:translateY(-1px); }
+  .btn-primary:active{ transform:translateY(0) scale(0.98); }
   .btn-ghost{ background:transparent; color:var(--oud); border:1.5px solid var(--amber-line); }
   .btn-ghost:hover{ border-color:var(--oud); }
   .btn-sm{ padding:7px 12px; font-size:12.5px; border-radius:8px; }
@@ -195,25 +219,34 @@
 
 <!-- ===================== LOGIN ===================== -->
 <div id="loginScreen">
-  <div class="login-card">
-    <div class="seal"><img id="loginLogo" alt="Bombay Musk" /></div>
-    <div class="wordmark">
-      <div class="bottom">Team Hub</div>
+  <div class="login-stage">
+    <div class="login-rings" aria-hidden="true">
+      <span class="ring r1"></span>
+      <span class="ring r2"></span>
+      <span class="ring r3"></span>
     </div>
-    <div class="tagline">Attendance · Leaves · Advances · Tasks</div>
-    <form id="loginForm">
-      <div class="field">
-        <label>Employee ID</label>
-        <input type="text" id="loginId" placeholder="e.g. BM-001" autocomplete="off" required>
+    <div class="login-card">
+      <div class="seal"><img id="loginLogo" alt="Bombay Musk" /></div>
+      <div class="wordmark">
+        <div class="bottom">Team Hub</div>
       </div>
-      <div class="field">
-        <label>PIN</label>
-        <input type="password" id="loginPin" placeholder="4–6 digit PIN" autocomplete="off" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Sign in</button>
-      <div class="login-error" id="loginError"></div>
-    </form>
-    <div class="login-hint" id="loginHint" style="display:none;">Setting this up for the first time? Ask your admin for your Employee ID and PIN.</div>
+      <div class="tagline">Attendance · Leaves · Advances · Tasks</div>
+      <div class="login-divider"></div>
+      <form id="loginForm">
+        <div class="field">
+          <label>Employee ID</label>
+          <input type="text" id="loginId" placeholder="e.g. BM-001" autocomplete="off" required>
+        </div>
+        <div class="field">
+          <label>PIN</label>
+          <input type="password" id="loginPin" placeholder="4–6 digit PIN" autocomplete="off" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Sign in</button>
+        <div class="login-error" id="loginError"></div>
+      </form>
+      <div class="login-hint" id="loginHint" style="display:none;">Setting this up for the first time? Ask your admin for your Employee ID and PIN.</div>
+    </div>
+    <p class="login-footer">Bombay Musk · Internal Team Access</p>
   </div>
 </div>
 
