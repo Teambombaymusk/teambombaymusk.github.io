@@ -1212,6 +1212,7 @@ function downloadAdvanceCsv(ym){
    SALARY CALCULATOR (founder only)
    ============================================================ */
 function isSunday(date){ return new Date(date+'T00:00:00').getDay() === 0; }
+const STANDARD_SHIFT_HOURS = 9;
 function calcSalary(emp, ym){
   const totalDays = daysInMonth(ym);
   const currentYM = todayStr().slice(0,7);
@@ -1220,11 +1221,15 @@ function calcSalary(emp, ym){
   else if(ym > currentYM) lastDay = 0;
   else lastDay = Number(todayStr().slice(8,10));
 
-  let present=0, paidLeave=0, sundaysPaid=0, absent=0;
+  let present=0, paidLeave=0, sundaysPaid=0, absent=0, autoOvertimeHours=0;
   for(let d=1; d<=lastDay; d++){
     const date = ym+'-'+String(d).padStart(2,'0');
     const cell = dayCell(emp.id, date);
-    if(cell.status==='P') present++;
+    if(cell.status==='P'){
+      present++;
+      const dayHours = cell.hours || 0;
+      if(dayHours > STANDARD_SHIFT_HOURS) autoOvertimeHours += (dayHours - STANDARD_SHIFT_HOURS);
+    }
     else if(cell.status==='L') paidLeave++;
     else if(cell.status==='A'){
       if(isSunday(date)) sundaysPaid++;
@@ -1241,7 +1246,7 @@ function calcSalary(emp, ym){
     .filter(a => a.empId===emp.id && a.status==='APPROVED' && a.appliedOn.slice(0,7)===ym)
     .reduce((sum,a)=>sum+a.amount, 0);
   const otRecord = (DB.overtime && DB.overtime[otKey(emp.id, ym)]) || {};
-  const overtimeHours = otRecord.hours || 0;
+  const overtimeHours = Math.round(autoOvertimeHours * 100) / 100; // calculated straight from attendance, not editable
   const overtimeRate = otRecord.rate || 0;
   const overtime = overtimeHours * overtimeRate;
   const netPayable = grossEarned - advances + overtime;
@@ -1253,14 +1258,12 @@ async function changeSalaryMonth(value){
   await ensureAttendanceMonthLoaded(value);
   renderPage();
 }
-function updateOvertime(empId, ym, field, value){
-  const num = parseFloat(value) || 0;
+function updateOvertimeRate(empId, ym, value){
+  const rate = parseFloat(value) || 0;
   if(!DB.overtime) DB.overtime = {};
   const key = otKey(empId, ym);
-  const current = DB.overtime[key] || {};
-  current[field] = num;
-  if(!current.hours && !current.rate) delete DB.overtime[key];
-  else DB.overtime[key] = current;
+  if(rate > 0) DB.overtime[key] = { rate };
+  else delete DB.overtime[key];
   renderPage();
   saveDB('overtime');
 }
@@ -1288,7 +1291,7 @@ function pageSalary(){
     html += `<div class="empty"><div class="big">₹</div><div class="t">No salaries set yet</div><div class="s">Add a monthly salary or per-day rate to each person in People to see calculations here.</div></div>`;
   } else {
     let totalPayable = 0;
-    html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Rate</th><th>Present</th><th>Leave</th><th>Sundays</th><th>Absent</th><th>Gross</th><th>Advances</th><th>OT Hours</th><th>OT Rate (₹/hr)</th><th>OT Payout</th><th>Net payable</th></tr></thead><tbody>`;
+    html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Rate</th><th>Present</th><th>Leave</th><th>Sundays</th><th>Absent</th><th>Gross</th><th>Advances</th><th>OT Hours (auto)</th><th>OT Rate (₹/hr)</th><th>OT Payout</th><th>Net payable</th></tr></thead><tbody>`;
     withSalary.forEach(e=>{
       const r = calcSalary(e, ym);
       totalPayable += r.netPayable;
@@ -1299,8 +1302,8 @@ function pageSalary(){
         <td class="mono" style="color:var(--danger);">${r.absent}</td>
         <td class="mono">₹${r.grossEarned.toFixed(0)}</td>
         <td class="mono" style="color:var(--danger);">${r.advances?'−₹'+r.advances.toLocaleString('en-IN'):'—'}</td>
-        <td class="mono"><input type="number" min="0" step="0.5" value="${r.overtimeHours||''}" placeholder="0" style="${otInputStyle}" onchange="updateOvertime('${e.id}','${ym}','hours',this.value)"></td>
-        <td class="mono"><input type="number" min="0" value="${r.overtimeRate||''}" placeholder="0" style="${otInputStyle}" onchange="updateOvertime('${e.id}','${ym}','rate',this.value)"></td>
+        <td class="mono">${r.overtimeHours||'—'}${r.overtimeHours?'h':''}</td>
+        <td class="mono"><input type="number" min="0" value="${r.overtimeRate||''}" placeholder="0" style="${otInputStyle}" onchange="updateOvertimeRate('${e.id}','${ym}',this.value)"></td>
         <td class="mono">${r.overtime?'₹'+r.overtime.toLocaleString('en-IN'):'—'}</td>
         <td class="mono" style="font-weight:700; color:var(--musk);">₹${r.netPayable.toFixed(0)}</td></tr>`;
     });
@@ -1312,7 +1315,7 @@ function pageSalary(){
     <div class="card"><p class="note">${withoutSalary.map(e=>escapeHtml(e.name)).join(', ')} — edit them in People to add a monthly salary or per-day rate.</p></div>`;
   }
 
-  html += `<p class="note" style="margin-top:18px;">This is a working estimate for internal reference: pay rate (monthly ÷ days in month, or a set per-day rate) × days paid (present + approved leave + Sundays), plus overtime hours × overtime rate, minus advances approved this month. It doesn't account for PF, ESI, professional tax, or TDS — run final numbers through your accountant before disbursing.</p>`;
+  html += `<p class="note" style="margin-top:18px;">This is a working estimate for internal reference: pay rate (monthly ÷ days in month, or a set per-day rate) × days paid (present + approved leave + Sundays), plus overtime, minus advances approved this month. Overtime hours are calculated automatically from attendance — any time worked beyond a ${STANDARD_SHIFT_HOURS}-hour shift on a present day counts as overtime; just set the ₹/hour rate per employee. It doesn't account for PF, ESI, professional tax, or TDS — run final numbers through your accountant before disbursing.</p>`;
   $('#mainContent').innerHTML = html;
 }
 async function downloadSalaryCsv(ym){
@@ -1320,7 +1323,7 @@ async function downloadSalaryCsv(ym){
   const teamFilter = window.__salaryTeam || '';
   let people = DB.employees.filter(e=>e.baseSalary || e.dailyRate);
   if(teamFilter) people = people.filter(e=>e.team===teamFilter);
-  const rows = [['Employee','Employee ID','Team','Salary Type','Monthly Salary','Daily Rate','Present','Paid Leave','Sundays Paid','Absent','Effective Per-day Rate','Gross Earned','Advances Deducted','OT Hours','OT Rate','OT Payout','Net Payable']];
+  const rows = [['Employee','Employee ID','Team','Salary Type','Monthly Salary','Daily Rate','Present','Paid Leave','Sundays Paid','Absent','Effective Per-day Rate','Gross Earned','Advances Deducted','OT Hours (auto)','OT Rate','OT Payout','Net Payable']];
   people.forEach(e=>{
     const r = calcSalary(e, ym);
     rows.push([e.name, e.id, teamName(e.team), r.isDaily?'Per-day':'Monthly', r.baseSalary||'', r.dailyRate||'', r.present, r.paidLeave, r.sundaysPaid, r.absent, r.perDayRate.toFixed(2), r.grossEarned.toFixed(0), r.advances, r.overtimeHours, r.overtimeRate, r.overtime, r.netPayable.toFixed(0)]);
