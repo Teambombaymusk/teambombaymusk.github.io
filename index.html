@@ -1102,7 +1102,7 @@ function pagePeople(){
     const overseers = DB.employees.filter(e=>e.role==='CORE_TEAM' && (e.managedTeams||[]).includes(t.id));
     html += `<tr><td>${escapeHtml(t.name)}</td><td>${t.leadId?escapeHtml(empName(t.leadId)):'— unassigned —'}</td>
       <td>${overseers.length?overseers.map(o=>escapeHtml(o.name)).join(', '):'—'}</td><td>${memberCount}</td>
-      <td><button class="link-btn" onclick="openTeamForm('${t.id}')">Edit</button></td></tr>`;
+      <td><button class="link-btn" onclick="openTeamForm('${t.id}')">Edit</button> <button class="link-btn" onclick="deleteTeam('${t.id}')">Delete</button></td></tr>`;
   });
   html += `</tbody></table></div>`;
 
@@ -1117,6 +1117,24 @@ function pagePeople(){
   html += `</tbody></table></div>
   <p class="note" style="margin-top:16px;">PINs are set when you add someone and can be shared with them directly so they can sign in.</p>`;
   $('#mainContent').innerHTML = html;
+}
+function deleteTeam(teamId){
+  const team = DB.teams.find(t=>t.id===teamId);
+  if(!team) return;
+  const memberCount = DB.employees.filter(e=>e.team===teamId).length;
+  const overseerCount = DB.employees.filter(e=>e.role==='CORE_TEAM' && (e.managedTeams||[]).includes(teamId)).length;
+  let msg = `Delete "${team.name}"?`;
+  if(memberCount) msg += ` ${memberCount} employee${memberCount>1?'s':''} will be unassigned from it.`;
+  if(overseerCount) msg += ` It will be removed from ${overseerCount} Core Team member${overseerCount>1?"'s":"'s"} oversight list.`;
+  if(!confirm(msg)) return;
+
+  DB.teams = DB.teams.filter(t=>t.id!==teamId);
+  DB.employees.forEach(e=>{
+    if(e.team===teamId) e.team = null;
+    if(e.managedTeams && e.managedTeams.includes(teamId)) e.managedTeams = e.managedTeams.filter(t=>t!==teamId);
+  });
+  toast('Team deleted'); renderPage();
+  saveDB('teams'); saveDB('employees');
 }
 function openTeamForm(editId){
   const existing = editId ? DB.teams.find(t=>t.id===editId) : null;
