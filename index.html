@@ -1197,7 +1197,7 @@ function deleteTeam(teamId){
 }
 function openTeamForm(editId){
   const existing = editId ? DB.teams.find(t=>t.id===editId) : null;
-  const leadOptions = DB.employees.filter(e=>e.role==='TEAM_LEAD' || e.role==='FOUNDER');
+  const leadOptions = DB.employees.filter(e=>e.role==='TEAM_LEAD' || e.role==='FOUNDER' || e.role==='CORE_TEAM');
   const coreOptions = DB.employees.filter(e=>e.role==='CORE_TEAM');
   openModal(`
     <button class="close" onclick="closeModal()">×</button>
@@ -1221,6 +1221,25 @@ function openTeamForm(editId){
     <button class="btn btn-primary" style="width:100%;" onclick="submitTeam()">${existing?'Save changes':'Create team'}</button>
   `);
 }
+function applyLeadAssignment(leadId, teamId){
+  // Returns true if it changed anything about the assigned employee.
+  const emp = DB.employees.find(x=>x.id===leadId);
+  if(!emp) return false;
+  if(emp.role==='FOUNDER') return false; // founders already have full access, nothing to change
+  if(emp.role==='CORE_TEAM'){
+    if(!(emp.managedTeams||[]).includes(teamId)){
+      emp.managedTeams = [...(emp.managedTeams||[]), teamId];
+      return true;
+    }
+    return false;
+  }
+  // plain employee (or existing team lead) becomes/stays this team's lead
+  if(emp.role!=='TEAM_LEAD' || emp.team!==teamId){
+    emp.role = 'TEAM_LEAD'; emp.team = teamId;
+    return true;
+  }
+  return false;
+}
 function submitTeam(){
   const editId = $('#teamEditId').value;
   const name = $('#teamName').value.trim();
@@ -1232,18 +1251,13 @@ function submitTeam(){
     if(!t){ toast('Team not found'); return; }
     t.name = name; t.leadId = leadId;
     let empChanged = false;
-    if(leadId){
-      const emp = DB.employees.find(x=>x.id===leadId);
-      if(emp && emp.role!=='FOUNDER' && (emp.role!=='TEAM_LEAD' || emp.team!==editId)){
-        emp.role = 'TEAM_LEAD'; emp.team = editId; empChanged = true;
-      }
-    }
     DB.employees.filter(e=>e.role==='CORE_TEAM').forEach(e=>{
       const has = (e.managedTeams||[]).includes(editId);
       const shouldHave = checkedCoreIds.includes(e.id);
       if(shouldHave && !has){ e.managedTeams = [...(e.managedTeams||[]), editId]; empChanged = true; }
       else if(!shouldHave && has){ e.managedTeams = (e.managedTeams||[]).filter(id=>id!==editId); empChanged = true; }
     });
+    if(leadId && applyLeadAssignment(leadId, editId)) empChanged = true;
     closeModal(); toast('Team updated'); renderPage();
     saveDB('teams');
     if(empChanged) saveDB('employees');
@@ -1254,8 +1268,9 @@ function submitTeam(){
   let empChanged = false;
   checkedCoreIds.forEach(coreId=>{
     const emp = DB.employees.find(e=>e.id===coreId);
-    if(emp){ emp.managedTeams = [...(emp.managedTeams||[]), newTeamId]; empChanged = true; }
+    if(emp && !(emp.managedTeams||[]).includes(newTeamId)){ emp.managedTeams = [...(emp.managedTeams||[]), newTeamId]; empChanged = true; }
   });
+  if(leadId && applyLeadAssignment(leadId, newTeamId)) empChanged = true;
   closeModal(); toast('Team created'); renderPage();
   saveDB('teams');
   if(empChanged) saveDB('employees');
@@ -1325,7 +1340,8 @@ function submitEmployee(){
     emp.salaryType = salaryType; emp.baseSalary = baseSalary; emp.dailyRate = dailyRate;
     let teamsChanged = false;
     DB.teams.forEach(t=>{
-      if(t.leadId===editId && (role!=='TEAM_LEAD' || t.id!==team)){ t.leadId = null; teamsChanged = true; }
+      const stillValidLead = (role==='TEAM_LEAD' && t.id===team) || role==='CORE_TEAM' || role==='FOUNDER';
+      if(t.leadId===editId && !stillValidLead){ t.leadId = null; teamsChanged = true; }
     });
     if(role==='TEAM_LEAD' && team){
       const t = DB.teams.find(x=>x.id===team);
