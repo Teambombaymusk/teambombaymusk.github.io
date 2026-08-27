@@ -752,7 +752,7 @@ function pageLeave(){
   const mine = DB.leaves.filter(l=>l.empId===CURRENT.id).sort((a,b)=>b.appliedOn.localeCompare(a.appliedOn));
   html += `<div class="card table-wrap"><table><thead><tr><th>From</th><th>To</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>`;
   if(!mine.length) html += `<tr><td colspan="5" class="empty">No leave requests yet.</td></tr>`;
-  mine.forEach(l=> html += `<tr><td>${fmtDate(l.from)}</td><td>${fmtDate(l.to)}</td><td>${escapeHtml(l.reason)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td><td><button class="link-btn" onclick="openLeaveForm('${l.id}')">Edit</button></td></tr>`);
+  mine.forEach(l=> html += `<tr><td>${fmtDate(l.from)}</td><td>${fmtDate(l.to)}</td><td>${escapeHtml(l.reason)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td><td><button class="link-btn" onclick="openLeaveForm('${l.id}')">Edit</button> <button class="link-btn" onclick="deleteLeave('${l.id}')">Delete</button></td></tr>`);
   html += `</tbody></table></div>`;
 
   if(isManager){
@@ -765,12 +765,12 @@ function pageLeave(){
       html += `<div class="card" style="margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
         <div><div style="font-weight:600;">${escapeHtml(empName(l.empId))} <span class="note">· ${teamName(DB.employees.find(e=>e.id===l.empId)?.team)}</span></div>
         <div style="font-size:13px; color:var(--muted); margin-top:2px;">${fmtDate(l.from)} → ${fmtDate(l.to)} · ${escapeHtml(l.reason)}</div></div>
-        <div class="row-actions"><button class="btn btn-sm btn-ghost" onclick="openLeaveForm('${l.id}')">Edit</button><button class="btn btn-sm btn-success" onclick="decideLeave('${l.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideLeave('${l.id}','REJECTED')">Reject</button></div>
+        <div class="row-actions"><button class="btn btn-sm btn-ghost" onclick="openLeaveForm('${l.id}')">Edit</button><button class="btn btn-sm btn-success" onclick="decideLeave('${l.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideLeave('${l.id}','REJECTED')">Reject</button><button class="btn btn-sm btn-ghost" onclick="deleteLeave('${l.id}')">Delete</button></div>
       </div>`;
     });
     if(history.length){
       html += `<div class="section-head"><h3>Recent decisions</h3></div><div class="card table-wrap"><table><thead><tr><th>Name</th><th>Dates</th><th>Status</th><th></th></tr></thead><tbody>`;
-      history.forEach(l=> html += `<tr><td>${escapeHtml(empName(l.empId))}</td><td>${fmtDate(l.from)} → ${fmtDate(l.to)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td><td><button class="link-btn" onclick="openLeaveForm('${l.id}')">Edit</button></td></tr>`);
+      history.forEach(l=> html += `<tr><td>${escapeHtml(empName(l.empId))}</td><td>${fmtDate(l.from)} → ${fmtDate(l.to)}</td><td><span class="pill pill-${l.status.toLowerCase()}">${l.status}</span></td><td><button class="link-btn" onclick="openLeaveForm('${l.id}')">Edit</button> <button class="link-btn" onclick="deleteLeave('${l.id}')">Delete</button></td></tr>`);
       html += `</tbody></table></div>`;
     }
   }
@@ -820,6 +820,13 @@ function decideLeave(id, status){
   toast(`Leave ${status.toLowerCase()}`); renderPage();
   saveDB('leaves');
 }
+function deleteLeave(id){
+  const l = DB.leaves.find(x=>x.id===id); if(!l) return;
+  if(!confirm(`Delete this leave request (${fmtDate(l.from)} → ${fmtDate(l.to)})? This can't be undone.`)) return;
+  DB.leaves = DB.leaves.filter(x=>x.id!==id);
+  toast('Leave request deleted'); renderPage();
+  saveDB('leaves');
+}
 
 /* ============================================================
    ADVANCE SALARY PAGE
@@ -832,7 +839,7 @@ function pageAdvance(){
   const mine = DB.advances.filter(a=>a.empId===CURRENT.id).sort((a,b)=>b.appliedOn.localeCompare(a.appliedOn));
   html += `<div class="card table-wrap"><table><thead><tr><th>Amount</th><th>Reason</th><th>Applied</th><th>Status</th><th></th></tr></thead><tbody>`;
   if(!mine.length) html += `<tr><td colspan="5" class="empty">No advance requests yet.</td></tr>`;
-  mine.forEach(a=> html += `<tr><td>₹${a.amount.toLocaleString('en-IN')}</td><td>${escapeHtml(a.reason)}</td><td>${fmtDate(a.appliedOn.slice(0,10))}</td><td><span class="pill pill-${a.status.toLowerCase()}">${a.status}</span></td><td><button class="link-btn" onclick="openAdvanceForm('${a.id}')">Edit</button></td></tr>`);
+  mine.forEach(a=> html += `<tr><td>₹${a.amount.toLocaleString('en-IN')}</td><td>${escapeHtml(a.reason)}</td><td>${fmtDate(a.appliedOn.slice(0,10))}</td><td><span class="pill pill-${a.status.toLowerCase()}">${a.status}</span></td><td><button class="link-btn" onclick="openAdvanceForm('${a.id}')">Edit</button> <button class="link-btn" onclick="deleteAdvance('${a.id}')">Delete</button></td></tr>`);
   html += `</tbody></table></div>`;
 
   if(isManager){
@@ -844,7 +851,7 @@ function pageAdvance(){
       html += `<div class="card" style="margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;">
         <div><div style="font-weight:600;">${escapeHtml(empName(a.empId))} · ₹${a.amount.toLocaleString('en-IN')}</div>
         <div style="font-size:13px; color:var(--muted); margin-top:2px;">${escapeHtml(a.reason)}</div></div>
-        <div class="row-actions"><button class="btn btn-sm btn-ghost" onclick="openAdvanceForm('${a.id}')">Edit</button><button class="btn btn-sm btn-success" onclick="decideAdvance('${a.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideAdvance('${a.id}','REJECTED')">Reject</button></div>
+        <div class="row-actions"><button class="btn btn-sm btn-ghost" onclick="openAdvanceForm('${a.id}')">Edit</button><button class="btn btn-sm btn-success" onclick="decideAdvance('${a.id}','APPROVED')">Approve</button><button class="btn btn-sm btn-danger" onclick="decideAdvance('${a.id}','REJECTED')">Reject</button><button class="btn btn-sm btn-ghost" onclick="deleteAdvance('${a.id}')">Delete</button></div>
       </div>`;
     });
   }
@@ -890,6 +897,13 @@ function decideAdvance(id, status){
   const a = DB.advances.find(x=>x.id===id); if(!a) return;
   a.status = status; a.reviewedBy = CURRENT.id;
   toast(`Advance ${status.toLowerCase()}`); renderPage();
+  saveDB('advances');
+}
+function deleteAdvance(id){
+  const a = DB.advances.find(x=>x.id===id); if(!a) return;
+  if(!confirm(`Delete this ₹${a.amount.toLocaleString('en-IN')} advance request? This can't be undone.`)) return;
+  DB.advances = DB.advances.filter(x=>x.id!==id);
+  toast('Advance request deleted'); renderPage();
   saveDB('advances');
 }
 
