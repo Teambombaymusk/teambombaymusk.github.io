@@ -132,6 +132,24 @@
 
   /* ---------- App shell ---------- */
   #app{ display:none; min-height:100vh; padding-bottom:76px; position:relative; }
+  #loginScreen.leaving{ animation: loginFadeOut .32s ease forwards; }
+  @keyframes loginFadeOut{ to{ opacity:0; transform:scale(0.97); } }
+  #app.entering{ animation: appFadeIn .5s cubic-bezier(.16,.9,.25,1); }
+  @keyframes appFadeIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+  .content-anim{ opacity:0; animation: contentUp .5s cubic-bezier(.16,.9,.25,1) both; }
+  .content-anim-1{ animation-delay:.02s; }
+  .content-anim-2{ animation-delay:.08s; }
+  .content-anim-3{ animation-delay:.14s; }
+  .content-anim-4{ animation-delay:.20s; }
+  @keyframes contentUp{ from{ opacity:0; transform:translateY(14px); } to{ opacity:1; transform:translateY(0); } }
+  @media (prefers-reduced-motion: reduce){
+    #loginScreen.leaving, #app.entering, .content-anim{ animation:none !important; opacity:1 !important; }
+  }
+  .live-dot{ display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--ink); margin-right:6px; animation: livePulse 2s ease-in-out infinite; vertical-align:middle; }
+  @keyframes livePulse{ 0%,100%{ opacity:1; transform:scale(1);} 50%{ opacity:0.4; transform:scale(0.75);} }
+  .stat{ transition: transform .15s ease, box-shadow .15s ease; }
+  .stat:hover{ transform:translateY(-2px); box-shadow:0 8px 20px -8px rgba(0,0,0,0.4); }
+
   .app-hero-backdrop{
     position:fixed; inset:0; z-index:0; pointer-events:none;
     background-image: var(--app-hero-bg); background-repeat:no-repeat;
@@ -585,9 +603,17 @@ function signInAs(emp){
   CURRENT = emp;
   ACTIVE_TAB = 'dashboard';
   try{ localStorage.setItem(SESSION_KEY, emp.id); }catch(e){}
-  $('#loginScreen').style.display = 'none';
-  $('#app').style.display = 'block';
-  renderShell();
+  const loginEl = $('#loginScreen');
+  const appEl = $('#app');
+  loginEl.classList.add('leaving');
+  setTimeout(()=>{
+    loginEl.style.display = 'none';
+    loginEl.classList.remove('leaving');
+    appEl.style.display = 'block';
+    appEl.classList.add('entering');
+    renderShell();
+    setTimeout(()=>appEl.classList.remove('entering'), 550);
+  }, 300);
 }
 function logout(){
   CURRENT = null;
@@ -734,12 +760,33 @@ setInterval(()=>{
 /* ============================================================
    DASHBOARD
    ============================================================ */
+function runCountUps(){
+  document.querySelectorAll('[data-countup]').forEach(el=>{
+    const target = parseInt(el.getAttribute('data-countup'), 10) || 0;
+    if(target === 0){ el.textContent = '0'; return; }
+    const duration = 550;
+    const start = performance.now();
+    function tick(now){
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(eased * target);
+      if(t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
+}
+function greetingForTime(){
+  const h = new Date().getHours();
+  if(h < 12) return 'Good morning';
+  if(h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 function pageDashboard(){
-  const isManager = CURRENT.role === 'FOUNDER' || CURRENT.role === 'TEAM_LEAD';
-  let html = `<h2 class="page-title">Hi, ${escapeHtml(CURRENT.name.split(' ')[0])} 👋</h2>
-  <p class="page-sub">${new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long'})}</p>`;
+  const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
+  let html = `<h2 class="page-title content-anim content-anim-1">${greetingForTime()}, ${escapeHtml(CURRENT.name.split(' ')[0])} 👋</h2>
+  <p class="page-sub content-anim content-anim-1"><span class="live-dot"></span>Live · ${new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long'})}</p>`;
 
-  html += clockCardHTML();
+  html += `<div class="content-anim content-anim-2">${clockCardHTML()}</div>`;
 
   if(isManager){
     const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id || CURRENT.role==='FOUNDER');
@@ -749,16 +796,16 @@ function pageDashboard(){
     const pendingAdv = DB.advances.filter(a=>a.status==='PENDING' && scopeIds.includes(a.empId)).length;
     const openTasks = DB.tasks.filter(t=>t.status!=='DONE' && scopeIds.includes(t.assignedTo)).length;
 
-    html += `<div class="section-head"><h3>${CURRENT.role==='FOUNDER'?'Company':'Team'} snapshot</h3></div>
-    <div class="grid grid-3">
+    html += `<div class="section-head content-anim content-anim-3"><h3>${CURRENT.role==='FOUNDER'?'Company':'Team'} snapshot</h3></div>
+    <div class="grid grid-3 content-anim content-anim-3">
       <div class="stat"><div class="num">${presentToday}/${total}</div><div class="lbl">Checked in today</div></div>
-      <div class="stat"><div class="num">${pendingLeaves}</div><div class="lbl">Pending leaves</div></div>
-      <div class="stat"><div class="num">${pendingAdv}</div><div class="lbl">Pending advances</div></div>
+      <div class="stat"><div class="num" data-countup="${pendingLeaves}">0</div><div class="lbl">Pending leaves</div></div>
+      <div class="stat"><div class="num" data-countup="${pendingAdv}">0</div><div class="lbl">Pending advances</div></div>
     </div>
-    <div class="grid grid-3" style="margin-top:14px;">
-      <div class="stat"><div class="num">${openTasks}</div><div class="lbl">Open tasks</div></div>
-      <div class="stat"><div class="num">${DB.teams.length}</div><div class="lbl">Teams</div></div>
-      <div class="stat"><div class="num">${total}</div><div class="lbl">People</div></div>
+    <div class="grid grid-3 content-anim content-anim-4" style="margin-top:14px;">
+      <div class="stat"><div class="num" data-countup="${openTasks}">0</div><div class="lbl">Open tasks</div></div>
+      <div class="stat"><div class="num" data-countup="${DB.teams.length}">0</div><div class="lbl">Teams</div></div>
+      <div class="stat"><div class="num" data-countup="${total}">0</div><div class="lbl">People</div></div>
     </div>`;
 
     if(pendingLeaves || pendingAdv){
@@ -781,13 +828,14 @@ function pageDashboard(){
     });
     const myLeaves = DB.leaves.filter(l=>l.empId===CURRENT.id && l.status==='PENDING').length;
     const myTasks = DB.tasks.filter(t=>t.assignedTo===CURRENT.id && t.status!=='DONE').length;
-    html += `<div class="grid grid-3" style="margin-top:22px;">
+    html += `<div class="grid grid-3 content-anim content-anim-3" style="margin-top:22px;">
       <div class="stat"><div class="num">${weekHrs.toFixed(1)}h</div><div class="lbl">Hours this week</div></div>
-      <div class="stat"><div class="num">${myLeaves}</div><div class="lbl">Pending leave</div></div>
-      <div class="stat"><div class="num">${myTasks}</div><div class="lbl">Open tasks</div></div>
+      <div class="stat"><div class="num" data-countup="${myLeaves}">0</div><div class="lbl">Pending leave</div></div>
+      <div class="stat"><div class="num" data-countup="${myTasks}">0</div><div class="lbl">Open tasks</div></div>
     </div>`;
   }
   $('#mainContent').innerHTML = html;
+  runCountUps();
 }
 function rowLine(title, sub, actions){
   return `<div style="display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--amber-line);">
