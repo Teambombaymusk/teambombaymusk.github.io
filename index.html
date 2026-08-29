@@ -52,14 +52,18 @@
   .intro-word-l{ transform:translateX(2vw); }
   .intro-word-r{ transform:translateX(-2vw); }
   .intro-window{
-    position:absolute; width:17vw; height:9.5vw; min-width:140px; min-height:78px;
+    position:fixed; inset:0; margin:auto;
+    width:100vw; height:100vh;
     background-image:var(--intro-window-img); background-size:cover; background-position:center;
     border-radius:8px; box-shadow:0 20px 50px -12px rgba(0,0,0,0.7);
-    transition: width 1s cubic-bezier(.76,0,.24,1), height 1s cubic-bezier(.76,0,.24,1),
-                border-radius .9s ease, box-shadow .9s ease;
+    transform: scale(0.17, 0.16);
+    transform-origin:center center;
+    will-change: transform;
+    transition: transform 1s cubic-bezier(.76,0,.24,1), border-radius .9s ease, box-shadow .9s ease;
     z-index:1;
+    backface-visibility:hidden;
   }
-  #introScreen.zoom .intro-window{ width:100vw; height:100vh; border-radius:0; box-shadow:none; }
+  #introScreen.zoom .intro-window{ transform:scale(1,1); border-radius:0; box-shadow:none; }
   #introScreen.zoom .intro-word-l{ opacity:0; transform:translateX(-6vw) scale(1.05); }
   #introScreen.zoom .intro-word-r{ opacity:0; transform:translateX(6vw) scale(1.05); }
   #introScreen.done{ opacity:0; pointer-events:none; transition:opacity .4s ease; }
@@ -69,6 +73,7 @@
   @media (max-width:640px){
     .intro-word{ font-size:9.5vw; }
     .intro-word-l{ transform:translateX(1vw); } .intro-word-r{ transform:translateX(-1vw); }
+    .intro-window{ transform: scale(0.34, 0.045); }
   }
 
   /* ---------- Login ---------- */
@@ -81,9 +86,10 @@
   .login-photo-overlay{
     position:absolute; inset:0; z-index:0; pointer-events:none;
     background:
-      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.04), transparent 45%),
-      radial-gradient(circle at 85% 85%, rgba(255,255,255,0.03), transparent 50%),
-      linear-gradient(180deg, rgba(2,2,2,0.55) 0%, rgba(2,2,2,0.72) 45%, rgba(2,2,2,0.88) 100%);
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.025), transparent 45%),
+      radial-gradient(circle at 85% 85%, rgba(255,255,255,0.02), transparent 50%),
+      linear-gradient(180deg, rgba(2,2,2,0.82) 0%, rgba(2,2,2,0.90) 45%, rgba(2,2,2,0.96) 100%);
+    backdrop-filter: saturate(0.7);
   }
   .login-stage{ z-index:1; }
   .login-stage{ position:relative; width:100%; max-width:400px; display:flex; flex-direction:column; align-items:center; }
@@ -187,7 +193,7 @@
     position:fixed; inset:0; z-index:0; pointer-events:none;
     background-image: var(--app-hero-bg); background-repeat:no-repeat;
     background-position:center top; background-size:cover;
-    opacity:0.07; filter:saturate(0.75);
+    opacity:0.03; filter:saturate(0.5) brightness(0.8);
   }
   .watermark{
     position:fixed; inset:0; z-index:0; pointer-events:none;
@@ -237,6 +243,7 @@
   main{ max-width:960px; margin:0 auto; padding:20px; }
   .page-title{ font-size:22px; margin:4px 0 3px; }
   .page-sub{ color:var(--muted); font-size:13.5px; margin-bottom:22px; }
+  .daily-quote{ font-family:'Fraunces',serif; font-style:italic; font-size:14px; color:var(--muted); margin:-10px 0 22px; line-height:1.5; }
 
   nav.tabbar{
     position:fixed; bottom:0; left:0; right:0; z-index:20; background:var(--panel);
@@ -828,6 +835,54 @@ function runCountUps(){
     requestAnimationFrame(tick);
   });
 }
+const DAILY_QUOTES = [
+  "Small, consistent effort beats occasional bursts of hustle.",
+  "Every order packed well is a customer earned twice.",
+  "Discipline today is the brand people trust tomorrow.",
+  "Details are not extra work — they are the work.",
+  "Show up the same way on your hardest day as your easiest.",
+  "Good habits compound quietly, then all at once.",
+  "The work you do when no one's watching builds the brand everyone sees.",
+  "Progress is a series of small, unglamorous decisions.",
+  "Take pride in the parts of the job no customer ever sees.",
+  "Consistency is the quiet advantage no competitor can copy.",
+  "A calm, steady pace wins more often than a rushed one.",
+  "Every task finished well makes the next one a little easier.",
+  "Reliability is a skill — practice it on purpose.",
+  "The best teams make ordinary days feel dependable.",
+  "Care about the small stuff; the big stuff takes care of itself.",
+  "You don't need a perfect day, just an honest one.",
+  "What you finish today, someone is counting on tomorrow.",
+  "Craft is just attention, repeated.",
+  "Momentum starts with one task, done properly.",
+  "Trust is built one on-time delivery at a time.",
+  "Your effort today is invisible until it isn't.",
+  "Great teams are built in ordinary Tuesdays, not big moments.",
+  "Slow and steady still finishes — and finishes well.",
+  "Pride in your work doesn't need an audience.",
+  "The extra five minutes of care is rarely wasted.",
+  "Do the boring part well; it's usually the important part.",
+  "Every checked-in day adds up to something bigger.",
+  "Focus on today's task — tomorrow's takes care of itself.",
+  "Good work rarely feels dramatic while you're doing it.",
+  "Consistency beats intensity, almost every time.",
+  "Start where you are, with what's in front of you.",
+  "A clear task list is a calmer mind.",
+  "Small wins, repeated daily, build real momentum.",
+  "Nobody remembers the easy days — they remember the reliable ones.",
+  "Quality is a habit, not an accident.",
+  "One good day at work is worth building on.",
+  "Steady hands build lasting things.",
+  "The job in front of you deserves your full attention.",
+  "Effort compounds even when results are slow to show.",
+  "Finish strong — the last hour matters as much as the first."
+];
+function quoteOfTheDay(){
+  const start = new Date(new Date().getFullYear(), 0, 0);
+  const diff = new Date() - start;
+  const dayOfYear = Math.floor(diff / 86400000);
+  return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
+}
 function greetingForTime(){
   const h = new Date().getHours();
   if(h < 12) return 'Good morning';
@@ -837,7 +892,8 @@ function greetingForTime(){
 function pageDashboard(){
   const isManager = CURRENT.role==='FOUNDER' || CURRENT.role==='TEAM_LEAD' || CURRENT.role==='CORE_TEAM';
   let html = `<h2 class="page-title content-anim content-anim-1">${greetingForTime()}, ${escapeHtml(CURRENT.name.split(' ')[0])} 👋</h2>
-  <p class="page-sub content-anim content-anim-1"><span class="live-dot"></span>Live · ${new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long'})}</p>`;
+  <p class="page-sub content-anim content-anim-1"><span class="live-dot"></span>Live · ${new Date().toLocaleDateString('en-IN',{weekday:'long', day:'numeric', month:'long'})}</p>
+  <p class="daily-quote content-anim content-anim-1">"${escapeHtml(quoteOfTheDay())}"</p>`;
 
   html += `<div class="content-anim content-anim-2">${clockCardHTML()}</div>`;
 
