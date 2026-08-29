@@ -157,6 +157,30 @@
   .user-chip .who{ text-align:right; }
   .user-chip .who .n{ font-size:13px; font-weight:600; }
   .user-chip .who .r{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .notif-wrap{ position:relative; }
+  .notif-bell{
+    position:relative; background:none; border:1.5px solid var(--amber-line); border-radius:10px;
+    width:36px; height:36px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    color:var(--ink);
+  }
+  .notif-badge{
+    position:absolute; top:-5px; right:-5px; background:var(--ink); color:var(--fill-text);
+    font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:8px;
+    display:flex; align-items:center; justify-content:center; padding:0 3px;
+  }
+  .notif-panel{
+    position:fixed; top:60px; right:12px; width:320px; max-width:88vw; max-height:400px; overflow-y:auto;
+    background:var(--panel); border:1px solid var(--amber-line); border-radius:14px; box-shadow:var(--shadow);
+    z-index:50;
+  }
+  .notif-panel-head{ display:flex; align-items:center; justify-content:space-between; padding:12px 14px; border-bottom:1px solid var(--amber-line); }
+  .notif-panel-head h4{ margin:0; font-size:13.5px; }
+  .notif-item{ padding:11px 14px; border-bottom:1px solid var(--amber-line); font-size:12.5px; cursor:pointer; }
+  .notif-item:last-child{ border-bottom:none; }
+  .notif-item.unread{ background:color-mix(in srgb, var(--ink) 5%, transparent); }
+  .notif-item .nm{ font-weight:600; margin-bottom:3px; }
+  .notif-item .nt{ color:var(--muted); font-size:11px; }
+  .notif-empty{ padding:24px 14px; text-align:center; color:var(--muted); font-size:12.5px; }
   .avatar{ width:32px;height:32px;border-radius:50%; background:var(--musk-soft); color:var(--musk); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
 
   main{ max-width:960px; margin:0 auto; padding:20px; }
@@ -303,6 +327,12 @@
       </div>
     </div>
     <div class="user-chip">
+      <div class="notif-wrap">
+        <button class="notif-bell" id="notifBell" onclick="toggleNotifPanel()" aria-label="Notifications">
+          🔔<span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel" style="display:none;"></div>
+      </div>
       <div class="who">
         <div class="n" id="chipName">—</div>
         <div class="r" id="chipRole">—</div>
@@ -327,7 +357,7 @@
      will send it to you after setting up their free project.
      ============================================================ */
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
   const firebaseConfig = {
@@ -366,6 +396,21 @@
       await ready;
       await setDoc(doc(db, COLLECTION, key), { value });
       return { key, value };
+    },
+    // Live real-time subscription: callback fires immediately with current value,
+    // then again every time the document changes (from this device or any other).
+    // Returns an unsubscribe function.
+    listen: (key, callback) => {
+      if(!db) return () => {};
+      let unsub = () => {};
+      ready.then(() => {
+        unsub = onSnapshot(doc(db, COLLECTION, key), (snap) => {
+          callback(snap.exists() ? snap.data().value : null);
+        }, (err) => {
+          console.error('Live sync error for', key, err);
+        });
+      });
+      return () => unsub();
     }
   };
   window.__storageReady = true;
@@ -377,7 +422,7 @@
    so everyone who opens this app sees the same live data.
    ============================================================ */
 
-let DB = { employees: [], teams: [], attendance: {}, leaves: [], advances: [], tasks: [], overtime: {} };
+let DB = { employees: [], teams: [], attendance: {}, leaves: [], advances: [], tasks: [], overtime: {}, notifications: [] };
 let CURRENT = null; // logged in employee object
 let ACTIVE_TAB = 'dashboard';
 
@@ -405,8 +450,42 @@ function toast(msg){
 /* ---------------- storage helpers ---------------- */
 const loadedAttendanceMonths = new Set();
 
+/* ---------------- real-time sync ---------------- */
+// Keeps every connected device live-updated — no manual refresh needed, ever.
+let realtimeUnsubscribers = [];
+function startRealtimeSync(){
+  realtimeUnsubscribers.forEach(u=>u());
+  realtimeUnsubscribers = [];
+  ['employees','teams','leaves','advances','tasks','notifications'].forEach(key=>{
+    const unsub = window.storage.listen(key, (value)=>{
+      DB[key] = value ? JSON.parse(value) : [];
+      onRemoteDataChanged();
+    });
+    realtimeUnsubscribers.push(unsub);
+  });
+  const ym = todayStr().slice(0,7);
+  const unsubAtt = window.storage.listen('attendance_'+ym, (value)=>{
+    const monthData = value ? JSON.parse(value) : {};
+    Object.keys(DB.attendance).forEach(k=>{
+      const d = k.split('::')[1];
+      if(d && d.slice(0,7)===ym) delete DB.attendance[k];
+    });
+    Object.assign(DB.attendance, monthData);
+    onRemoteDataChanged();
+  });
+  realtimeUnsubscribers.push(unsubAtt);
+}
+function onRemoteDataChanged(){
+  if(!CURRENT) return; // still on the login screen — nothing to refresh yet
+  renderNotifBell();
+  // Never yank the screen out from under someone mid-edit (typing a rate, filling a form, etc).
+  const active = document.activeElement;
+  const isEditing = active && (active.tagName==='INPUT' || active.tagName==='TEXTAREA' || active.tagName==='SELECT');
+  if(isEditing) return;
+  renderPage();
+}
 async function loadDB(){
-  const keys = ['employees','teams','leaves','advances','tasks','overtime'];
+  const keys = ['employees','teams','leaves','advances','tasks','overtime','notifications'];
   let hadError = false;
   const results = await Promise.all(keys.map(async (k) => {
     try{ return await window.storage.get(k, true); }
@@ -543,6 +622,69 @@ function renderShell(){
       <span class="ic">${t.ic}</span><span>${t.label}</span>
     </button>`).join('');
   renderPage();
+  renderNotifBell();
+}
+
+/* ---------------- notifications ---------------- */
+function myNotifs(){
+  if(!CURRENT) return [];
+  return (DB.notifications||[]).filter(n=>n.userId===CURRENT.id).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+}
+function renderNotifBell(){
+  if(!CURRENT || !$('#notifBadge')) return;
+  const unread = myNotifs().filter(n=>!n.read).length;
+  const badge = $('#notifBadge');
+  if(unread > 0){ badge.style.display = 'flex'; badge.textContent = unread > 9 ? '9+' : unread; }
+  else { badge.style.display = 'none'; }
+  if($('#notifPanel').style.display !== 'none') renderNotifPanel();
+}
+function timeAgo(iso){
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diffMs/60000);
+  if(mins < 1) return 'just now';
+  if(mins < 60) return mins+'m ago';
+  const hrs = Math.floor(mins/60);
+  if(hrs < 24) return hrs+'h ago';
+  const days = Math.floor(hrs/24);
+  return days+'d ago';
+}
+function renderNotifPanel(){
+  const notifs = myNotifs();
+  let html = `<div class="notif-panel-head"><h4>Notifications</h4>${notifs.some(n=>!n.read) ? `<button class="link-btn" onclick="markAllNotifsRead()">Mark all read</button>` : ''}</div>`;
+  if(!notifs.length){
+    html += `<div class="notif-empty">Nothing yet — task assignments will show up here.</div>`;
+  } else {
+    notifs.slice(0,25).forEach(n=>{
+      html += `<div class="notif-item ${n.read?'':'unread'}" onclick="openNotif('${n.id}')">
+        <div class="nm">${escapeHtml(n.message)}</div>
+        <div class="nt">${timeAgo(n.createdAt)}</div>
+      </div>`;
+    });
+  }
+  $('#notifPanel').innerHTML = html;
+}
+function toggleNotifPanel(){
+  const panel = $('#notifPanel');
+  const isOpen = panel.style.display !== 'none';
+  if(isOpen){ panel.style.display = 'none'; return; }
+  renderNotifPanel();
+  panel.style.display = 'block';
+}
+document.addEventListener('click', (e)=>{
+  const wrap = $('.notif-wrap');
+  if(wrap && !wrap.contains(e.target)){ const p = $('#notifPanel'); if(p) p.style.display = 'none'; }
+});
+function openNotif(id){
+  const n = (DB.notifications||[]).find(x=>x.id===id);
+  if(!n) return;
+  if(!n.read){ n.read = true; saveDB('notifications'); renderNotifBell(); }
+  $('#notifPanel').style.display = 'none';
+  if(n.taskId){ ACTIVE_TAB = 'tasks'; renderShell(); }
+}
+function markAllNotifsRead(){
+  myNotifs().forEach(n=>{ n.read = true; });
+  saveDB('notifications');
+  renderNotifBell();
 }
 function switchTab(id){ ACTIVE_TAB = id; renderShell(); }
 function renderPage(){
@@ -572,6 +714,22 @@ function hoursBetween(inIso, outIso){
   return Math.max(0, ms/3600000);
 }
 function attKey(empId, date){ return empId+'::'+date; }
+
+/* Live ticking "time since check-in" — any element with data-checkin="<ISO>" is
+   updated every second automatically, wherever it appears in the app. */
+function fmtElapsed(ms){
+  const totalSec = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(totalSec/3600);
+  const m = Math.floor((totalSec%3600)/60);
+  const s = totalSec%60;
+  return `${h}h ${m}m ${s}s`;
+}
+setInterval(()=>{
+  document.querySelectorAll('[data-checkin]').forEach(el=>{
+    const iso = el.getAttribute('data-checkin');
+    el.textContent = fmtElapsed(Date.now() - new Date(iso).getTime());
+  });
+}, 1000);
 
 /* ============================================================
    DASHBOARD
@@ -650,7 +808,7 @@ function clockCardHTML(){
     statusLine = 'Not checked in yet';
     btnHtml = `<button class="bigbtn" onclick="doCheckIn()">Check In</button>`;
   } else if(rec.checkIn && !rec.checkOut){
-    statusLine = `Checked in at ${fmtTime(rec.checkIn)}`;
+    statusLine = `Checked in at ${fmtTime(rec.checkIn)} · <span class="live-timer" data-checkin="${rec.checkIn}">0h 0m 0s</span> active`;
     btnHtml = `<button class="bigbtn out" onclick="doCheckOut()">Check Out</button>`;
   } else {
     const h = hoursBetween(rec.checkIn, rec.checkOut);
@@ -984,14 +1142,27 @@ function submitTask(){
   if(editId){
     const t = DB.tasks.find(x=>x.id===editId);
     if(!t){ toast('Task not found'); return; }
+    const reassigned = t.assignedTo !== assignee;
     t.title = title; t.description = desc; t.assignedTo = assignee; t.team = assigneeEmp?.team||null; t.dueDate = due||null;
+    if(reassigned) notifyTaskAssigned(t, assignee);
     closeModal(); toast('Task updated'); renderPage();
     saveDB('tasks');
+    if(reassigned) saveDB('notifications');
     return;
   }
-  DB.tasks.push({ id: uid('tk'), title, description:desc, team: assigneeEmp?.team||null, assignedTo:assignee, status:'TODO', dueDate:due||null, createdBy:CURRENT.id, createdOn:new Date().toISOString() });
+  const newTask = { id: uid('tk'), title, description:desc, team: assigneeEmp?.team||null, assignedTo:assignee, status:'TODO', dueDate:due||null, createdBy:CURRENT.id, createdOn:new Date().toISOString() };
+  DB.tasks.push(newTask);
+  notifyTaskAssigned(newTask, assignee);
   closeModal(); toast('Task created'); renderPage();
   saveDB('tasks');
+  saveDB('notifications');
+}
+function notifyTaskAssigned(task, assigneeId){
+  if(!DB.notifications) DB.notifications = [];
+  DB.notifications.push({
+    id: uid('ntf'), userId: assigneeId, type:'task_assigned', taskId: task.id,
+    message: `New task: ${task.title}`, read:false, createdAt: new Date().toISOString()
+  });
 }
 function moveTask(id, status){
   const t = DB.tasks.find(x=>x.id===id); if(!t) return;
@@ -1010,15 +1181,19 @@ function deleteTask(id){
    TEAM PAGE (lead + founder)
    ============================================================ */
 function pageTeam(){
-  let html = `<h2 class="page-title">Team</h2><p class="page-sub">People you manage.</p>`;
+  let html = `<h2 class="page-title">Team</h2><p class="page-sub">People you manage — live status.</p>`;
   const scopeIds = myTeamMemberIds().filter(id=>id!==CURRENT.id);
   const people = DB.employees.filter(e=>scopeIds.includes(e.id));
-  html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Team</th><th>Role</th><th>Today</th></tr></thead><tbody>`;
-  if(!people.length) html += `<tr><td colspan="4" class="empty">No team members assigned yet.</td></tr>`;
+  html += `<div class="card table-wrap"><table><thead><tr><th>Name</th><th>Team</th><th>Role</th><th>Today</th><th>Active for</th></tr></thead><tbody>`;
+  if(!people.length) html += `<tr><td colspan="5" class="empty">No team members assigned yet.</td></tr>`;
   people.forEach(e=>{
     const rec = DB.attendance[attKey(e.id, todayStr())];
+    const activeCell = rec?.checkIn && !rec?.checkOut
+      ? `<span class="live-timer mono" data-checkin="${rec.checkIn}">0h 0m 0s</span>`
+      : (rec?.checkOut ? `${hoursBetween(rec.checkIn, rec.checkOut).toFixed(1)}h (done)` : '—');
     html += `<tr><td>${escapeHtml(e.name)}</td><td>${teamName(e.team)}</td><td>${e.role.replace('_',' ')}</td>
-      <td><span class="pill ${rec?.checkIn?'pill-present':'pill-absent'}">${rec?.checkIn?'Present':'Absent'}</span></td></tr>`;
+      <td><span class="pill ${rec?.checkIn?'pill-present':'pill-absent'}">${rec?.checkIn?'Present':'Absent'}</span></td>
+      <td>${activeCell}</td></tr>`;
   });
   html += `</tbody></table></div>`;
   $('#mainContent').innerHTML = html;
@@ -1599,6 +1774,7 @@ function removeEmployee(id){
     $('#loginError').textContent = '';
     return;
   }
+  startRealtimeSync();
 
   // Auto sign-in if this device already has a saved session
   try{
