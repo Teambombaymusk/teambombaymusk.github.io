@@ -31,6 +31,7 @@
   body{
     margin:0; background:var(--paper); color:var(--ink);
     font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
   }
   h1,h2,h3,.display{ font-family:'Fraunces',serif; font-weight:600; letter-spacing:-0.01em; }
   .mono{ font-family:'JetBrains Mono',monospace; }
@@ -203,13 +204,13 @@
   header.topbar{
     position:sticky; top:0; z-index:20; background:var(--paper);
     border-bottom:1px solid var(--amber-line); padding:14px 20px;
-    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
   }
   .brand-mini{ display:flex; align-items:center; gap:10px; }
   .brand-mini .mark{ width:36px;height:36px;border-radius:9px; display:flex;align-items:center;justify-content:center; overflow:hidden; }
   .brand-mini .name{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; line-height:1.1; white-space:nowrap; }
   .brand-mini .sub{ font-size:10.5px; color:var(--muted); letter-spacing:0.05em; }
-  .user-chip{ display:flex; align-items:center; gap:10px; }
+  .user-chip{ display:flex; align-items:center; gap:8px; }
   .user-chip .who{ text-align:right; }
   .user-chip .who .n{ font-size:13px; font-weight:600; }
   .user-chip .who .r{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
@@ -238,6 +239,13 @@
   .notif-item .nt{ color:var(--muted); font-size:11px; }
   .notif-empty{ padding:24px 14px; text-align:center; color:var(--muted); font-size:12.5px; }
   .avatar{ width:32px;height:32px;border-radius:50%; background:var(--musk-soft); color:var(--musk); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+  @media (max-width:380px){
+    header.topbar{ padding:12px 12px; gap:6px; }
+    .brand-mini .sub{ display:none; }
+    .user-chip .who .r{ display:none; }
+    .user-chip{ gap:6px; }
+    .btn-ghost.btn-sm{ padding:7px 10px; font-size:12px; }
+  }
 
   main{ max-width:960px; margin:0 auto; padding:20px; }
   .page-title{ font-size:22px; margin:4px 0 3px; }
@@ -1932,6 +1940,18 @@ function removeEmployee(id){
     $('#loginError').textContent = '';
     return;
   }
+
+  // TEMPORARY ONE-TIME FIX: restore admin's Founder role after an accidental change.
+  // Safe to remove once confirmed working.
+  (function restoreAdminFounder(){
+    const emp = DB.employees.find(e => e.id.toLowerCase() === 'admin');
+    if(emp && emp.role !== 'FOUNDER'){
+      emp.role = 'FOUNDER';
+      saveDB('employees');
+      console.log('Restored admin to FOUNDER role.');
+    }
+  })();
+
   startRealtimeSync();
 
   // Auto sign-in if this device already has a saved session
